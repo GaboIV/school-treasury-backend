@@ -19,13 +19,9 @@ namespace Application.DTOs
         public decimal TotalAmount { get; set; }
 
         [Required]
-        public decimal IndividualAmount { get; set; }
-        public TotalPaidDto? Advance { get; set; }
-
-        [Required]
         public string? StudentQuantity { get; set; }
 
-        public string? Status { get; set; }
+        public bool? Status { get; set; }
 
         public List<CreateImageDto>? Images { get; set; }
     }

@@ -19,7 +19,7 @@ namespace Application.DTOs
         [Required]
         public string? StudentQuantity { get; set; }
 
-        public string? Status { get; set; }
+        public bool? Status { get; set; }
 
         public List<CreateImageDto>? Images { get; set; }
     }

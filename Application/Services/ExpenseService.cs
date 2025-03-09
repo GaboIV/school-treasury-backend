@@ -75,7 +75,7 @@ namespace Application.Services {
             existingExpense.TotalAmount = dto.TotalAmount;
             existingExpense.IndividualAmount = individualAmount;
             existingExpense.StudentQuantity = dto.StudentQuantity;
-            existingExpense.Status = bool.Parse(dto.Status ?? "true");
+            existingExpense.Status = dto.Status;
             existingExpense.UpdatedAt = DateTime.UtcNow;
 
             existingExpense.Advance.Total = totalStudents;
