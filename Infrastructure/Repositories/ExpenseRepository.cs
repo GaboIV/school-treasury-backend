@@ -25,11 +25,16 @@ namespace Infrastructure.Repositories
         public async Task UpdateAsync(Expense expensive)
         {
             var filter = Builders<Expense>.Filter.Eq(c => c.Id, expensive.Id);
-            var update = Builders<Expense>.Update
-                .Set(c => c.Name, expensive.Name)
-                .Set(c => c.Date, expensive.Date);
-                
-            await _expensives.UpdateOneAsync(filter, update);
+            
+            // Utilizamos ReplaceOneAsync para reemplazar todo el documento
+            // Esto evita tener que especificar cada campo a actualizar
+            await _expensives.ReplaceOneAsync(filter, expensive);
+        }
+
+        public async Task<bool> ExistsByExpenseTypeIdAsync(string expenseTypeId)
+        {
+            var count = await _expensives.CountDocumentsAsync(c => c.ExpenseTypeId == expenseTypeId);
+            return count > 0;
         }
     }
 }

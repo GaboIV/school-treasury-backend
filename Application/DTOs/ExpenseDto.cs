@@ -2,7 +2,6 @@ namespace Application.DTOs
 {
     public class ExpenseDto : BaseDto
     {
-        public required string Id { get; set; }
         public required string ExpenseTypeId { get; set; }
         public string? Name { get; set; }
         public decimal Amount { get; set; }

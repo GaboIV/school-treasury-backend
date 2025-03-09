@@ -34,6 +34,7 @@ D:\Proyectos\.Net\school-treasury-backend\obj\Debug\net9.0\SchoolTreasureAPI.Ass
 D:\Proyectos\.Net\school-treasury-backend\obj\Debug\net9.0\SchoolTreasureAPI.csproj.CoreCompileInputs.cache
 D:\Proyectos\.Net\school-treasury-backend\obj\Debug\net9.0\SchoolTreasureAPI.MvcApplicationPartsAssemblyInfo.cs
 D:\Proyectos\.Net\school-treasury-backend\obj\Debug\net9.0\SchoolTreasureAPI.MvcApplicationPartsAssemblyInfo.cache
+D:\Proyectos\.Net\school-treasury-backend\obj\Debug\net9.0\SchoolTreasureAPI.sourcelink.json
 D:\Proyectos\.Net\school-treasury-backend\obj\Debug\net9.0\scopedcss\bundle\SchoolTreasureAPI.styles.css
 D:\Proyectos\.Net\school-treasury-backend\obj\Debug\net9.0\staticwebassets.build.json
 D:\Proyectos\.Net\school-treasury-backend\obj\Debug\net9.0\staticwebassets.development.json

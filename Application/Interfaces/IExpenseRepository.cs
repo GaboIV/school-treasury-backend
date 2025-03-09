@@ -7,5 +7,6 @@ namespace Application.Interfaces {
         Task<Expense> GetByIdAsync(string id);
         Task InsertAsync(Expense expense);
         Task UpdateAsync(Expense expense);
+        Task<bool> ExistsByExpenseTypeIdAsync(string expenseTypeId);
     }
 }

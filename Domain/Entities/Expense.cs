@@ -4,10 +4,6 @@ using MongoDB.Bson.Serialization.Attributes;
 namespace Domain.Entities {
     public class Expense : BaseEntity
     {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string? Id { get; set; }
-
         [BsonElement("expenseTypeId")]
         [BsonRepresentation(BsonType.ObjectId)]
         public required string ExpenseTypeId { get; set; }

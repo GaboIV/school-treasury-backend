@@ -25,10 +25,28 @@ namespace Infrastructure.Repositories
         public async Task UpdateAsync(ExpenseType expensiveType)
         {
             var filter = Builders<ExpenseType>.Filter.Eq(c => c.Id, expensiveType.Id);
-            var update = Builders<ExpenseType>.Update
-                .Set(c => c.Name, expensiveType.Name);
-                
-            await _expensiveTypes.UpdateOneAsync(filter, update);
+            
+            // Utilizamos ReplaceOneAsync para reemplazar todo el documento
+            // Esto evita tener que especificar cada campo a actualizar
+            await _expensiveTypes.ReplaceOneAsync(filter, expensiveType);
+        }
+
+        public async Task<bool> DeleteAsync(string id)
+        {
+            var result = await _expensiveTypes.DeleteOneAsync(c => c.Id == id);
+            return result.DeletedCount > 0;
+        }
+
+        public async Task<(List<ExpenseType> Items, int TotalCount)> GetPaginatedAsync(int page, int pageSize)
+        {
+            var totalCount = await _expensiveTypes.CountDocumentsAsync(_ => true);
+            
+            var items = await _expensiveTypes.Find(_ => true)
+                .Skip((page - 1) * pageSize)
+                .Limit(pageSize)
+                .ToListAsync();
+            
+            return (items, (int)totalCount);
         }
     }
 }
