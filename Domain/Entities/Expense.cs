@@ -8,6 +8,10 @@ namespace Domain.Entities {
         [BsonRepresentation(BsonType.ObjectId)]
         public required string ExpenseTypeId { get; set; }
 
+        [BsonElement("expenseType")]
+        [BsonIgnoreIfNull]
+        public ExpenseType? ExpenseType { get; set; }
+
         [BsonElement("name")]
         public string? Name { get; set; }
 
@@ -25,6 +29,9 @@ namespace Domain.Entities {
 
         [BsonElement("advance")]
         public Advance Advance { get; set; } = new Advance();
+
+        [BsonElement("studentQuantity")]
+        public string? StudentQuantity { get; set; } = "all";
 
         [BsonElement("images")]
         public List<Image> Images { get; set; } = new List<Image>();

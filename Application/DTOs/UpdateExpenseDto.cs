@@ -1,10 +1,12 @@
 using System.ComponentModel.DataAnnotations;
-using MongoDB.Bson;
 
 namespace Application.DTOs
 {
-    public class CreateExpenseDto
+    public class UpdateExpenseDto
     {
+        [Required]
+        public string? Id { get; set; }
+
         public string? Name { get; set; }
 
         [Required]
@@ -15,7 +17,11 @@ namespace Application.DTOs
 
         [Required]
         public decimal TotalAmount { get; set; }
-    
+
+        [Required]
+        public decimal IndividualAmount { get; set; }
+        public TotalPaidDto? Advance { get; set; }
+
         [Required]
         public string? StudentQuantity { get; set; }
 
