@@ -4,16 +4,19 @@ using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Infrastructure.Repositories
 {
     public class StudentPaymentRepository : IStudentPaymentRepository
     {
         private readonly IMongoCollection<StudentPayment> _paymentCollection;
+        private readonly IMongoCollection<Student> _studentCollection;
 
         public StudentPaymentRepository(IMongoDatabase database)
         {
             _paymentCollection = database.GetCollection<StudentPayment>("StudentPayments");
+            _studentCollection = database.GetCollection<Student>("Students");
         }
 
         public async Task<IEnumerable<StudentPayment>> GetAllAsync()
@@ -21,9 +24,9 @@ namespace Infrastructure.Repositories
             return await _paymentCollection.Find(payment => payment.Status == true).ToListAsync();
         }
 
-        public async Task<StudentPayment> GetByIdAsync(string id)
+        public async Task<StudentPayment?> GetByIdAsync(string id)
         {
-            return await _paymentCollection.Find(payment => payment.Id == id && payment.Status == true).FirstOrDefaultAsync();
+            return await _paymentCollection.Find(p => p.Id == id).FirstOrDefaultAsync();
         }
 
         public async Task<IEnumerable<StudentPayment>> GetByStudentIdAsync(string studentId)
@@ -95,15 +98,10 @@ namespace Infrastructure.Repositories
                 payment);
         }
 
-        public async Task DeleteAsync(string id)
+        public async Task<bool> DeleteAsync(string id)
         {
-            var payment = await GetByIdAsync(id);
-            if (payment != null)
-            {
-                payment.Status = false;
-                payment.DeletedAt = DateTime.UtcNow;
-                await UpdateAsync(payment);
-            }
+            var result = await _paymentCollection.DeleteOneAsync(p => p.Id == id);
+            return result.DeletedCount > 0;
         }
 
         public async Task<IEnumerable<StudentPayment>> CreateManyAsync(IEnumerable<StudentPayment> payments)
@@ -177,6 +175,55 @@ namespace Infrastructure.Repositories
             {
                 await _paymentCollection.BulkWriteAsync(bulkOps);
             }
+        }
+
+        public async Task CreatePaymentsForExpenseAsync(string expenseId, decimal individualAmount)
+        {
+            var students = await _studentCollection.Find(_ => true).ToListAsync();
+            var payments = students.Select(student => new StudentPayment
+            {
+                ExpenseId = expenseId,
+                StudentId = student.Id,
+                AmountExpense = individualAmount,
+                AdjustedAmountExpense = individualAmount,
+                PaymentStatus = PaymentStatus.Pending,
+                Pending = individualAmount,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+
+            await _paymentCollection.InsertManyAsync(payments);
+        }
+
+        public async Task UpdatePaymentsForExpenseAsync(string expenseId, decimal newIndividualAmount)
+        {
+            var payments = await GetByExpenseIdAsync(expenseId);
+            foreach (var payment in payments)
+            {
+                payment.AmountExpense = newIndividualAmount;
+                payment.AdjustedAmountExpense = newIndividualAmount;
+                payment.Pending = newIndividualAmount - payment.AmountPaid;
+                payment.UpdatedAt = DateTime.UtcNow;
+
+                if (payment.AmountPaid >= newIndividualAmount)
+                {
+                    payment.PaymentStatus = PaymentStatus.Paid;
+                    payment.Excedent = payment.AmountPaid - newIndividualAmount;
+                    payment.Pending = 0;
+                }
+                else if (payment.AmountPaid > 0)
+                {
+                    payment.PaymentStatus = PaymentStatus.PartiallyPaid;
+                    payment.Excedent = 0;
+                }
+
+                await UpdateAsync(payment);
+            }
+        }
+
+        public async Task InsertAsync(StudentPayment payment)
+        {
+            await _paymentCollection.InsertOneAsync(payment);
         }
     }
 } 

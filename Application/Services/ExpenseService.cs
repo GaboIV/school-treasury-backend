@@ -1,22 +1,27 @@
 using Application.DTOs;
 using Application.Interfaces;
 using Domain.Entities;
+using MongoDB.Driver;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Application.Services {
     public class ExpenseService : IExpenseService
     {
         private readonly IExpenseRepository _expenseRepository;
-        private readonly IStudentPaymentService _studentPaymentService;
+        private readonly IStudentPaymentRepository _studentPaymentRepository;
 
         public ExpenseService(
             IExpenseRepository expenseRepository,
-            IStudentPaymentService studentPaymentService)
+            IStudentPaymentRepository studentPaymentRepository)
         {
             _expenseRepository = expenseRepository;
-            _studentPaymentService = studentPaymentService;
+            _studentPaymentRepository = studentPaymentRepository;
         }
 
-        public async Task<List<Expense>> GetAllExpensesAsync()
+        public async Task<IEnumerable<Expense>> GetAllExpensesAsync()
         {
             var expenses = await _expenseRepository.GetAllAsync();
             foreach(var expense in expenses)
@@ -60,13 +65,13 @@ namespace Application.Services {
             // Crear pagos para cada estudiante
             if (dto.StudentQuantity == "all")
             {
-                await _studentPaymentService.CreatePaymentsForExpenseAsync(expense.Id, individualAmount);
+                await _studentPaymentRepository.CreatePaymentsForExpenseAsync(expense.Id, individualAmount);
             }
             
             return expense;
         }
 
-        public async Task<Expense> UpdateExpenseAsync(UpdateExpenseDto dto)
+        public async Task<Expense?> UpdateExpenseAsync(UpdateExpenseDto dto)
         {
             decimal individualAmount = 0;
             int totalStudents = 25;
@@ -74,7 +79,7 @@ namespace Application.Services {
             var existingExpense = await _expenseRepository.GetByIdAsync(dto.Id!);
             
             if (existingExpense == null)
-                return null!;
+                return null;
 
             if (dto.StudentQuantity == "all") {
                 individualAmount = dto.TotalAmount / totalStudents;
@@ -104,12 +109,12 @@ namespace Application.Services {
                 if (previousStudentQuantity != "all")
                 {
                     // Si antes no era para todos los estudiantes, crear los pagos
-                    await _studentPaymentService.CreatePaymentsForExpenseAsync(existingExpense.Id, individualAmount);
+                    await _studentPaymentRepository.CreatePaymentsForExpenseAsync(existingExpense.Id, individualAmount);
                 }
                 else if (previousIndividualAmount != individualAmount)
                 {
                     // Si el monto individual cambió, actualizar los pagos existentes
-                    await _studentPaymentService.UpdatePaymentsForExpenseAsync(existingExpense.Id, individualAmount);
+                    await _studentPaymentRepository.UpdatePaymentsForExpenseAsync(existingExpense.Id, individualAmount);
                 }
             }
             
@@ -136,9 +141,77 @@ namespace Application.Services {
             return await _expenseRepository.ExistsByExpenseTypeIdAsync(expenseTypeId);
         }
 
-        public async Task<(List<Expense> Items, int TotalCount)> GetPaginatedExpensesAsync(int page, int pageSize)
+        public async Task<(IEnumerable<Expense> Expenses, int TotalCount)> GetPaginatedExpensesAsync(int page, int pageSize)
         {
-            return await _expenseRepository.GetPaginatedAsync(page, pageSize);
+            var result = await _expenseRepository.GetPaginatedAsync(page, pageSize);
+            return (result.Items, result.TotalCount);
+        }
+
+        public async Task<Expense> AdjustExpenseAmountAsync(string id, AdjustExpenseAmountDto dto)
+        {
+            var expense = await _expenseRepository.GetByIdAsync(id);
+            if (expense == null)
+            {
+                throw new KeyNotFoundException($"Gasto con ID {id} no encontrado");
+            }
+
+            // Actualizar el monto ajustado y el excedente total
+            expense.AdjustedIndividualAmount = dto.AdjustedAmount;
+            expense.TotalSurplus = dto.Surplus;
+
+            // Obtener todos los pagos relacionados con este gasto
+            var payments = await _studentPaymentRepository.GetByExpenseIdAsync(id);
+
+            // Actualizar cada pago
+            foreach (var payment in payments)
+            {
+                // Mantener el monto original
+                payment.AmountExpense = expense.IndividualAmount;
+                
+                // Establecer el monto ajustado
+                payment.AdjustedAmountExpense = dto.AdjustedAmount;
+                
+                // Calcular el excedente individual
+                payment.Surplus = dto.Surplus;
+
+                // Recalcular el estado del pago
+                if (payment.AmountPaid >= payment.AdjustedAmountExpense)
+                {
+                    payment.PaymentStatus = PaymentStatus.Paid;
+                    payment.Excedent = payment.AmountPaid - payment.AdjustedAmountExpense;
+                    payment.Pending = 0;
+                }
+                else if (payment.AmountPaid > 0)
+                {
+                    payment.PaymentStatus = PaymentStatus.PartiallyPaid;
+                    payment.Excedent = 0;
+                    payment.Pending = payment.AdjustedAmountExpense - payment.AmountPaid;
+                }
+                else
+                {
+                    payment.PaymentStatus = PaymentStatus.Pending;
+                    payment.Excedent = 0;
+                    payment.Pending = payment.AdjustedAmountExpense;
+                }
+
+                // Actualizar el pago en la base de datos
+                await _studentPaymentRepository.UpdateAsync(payment);
+            }
+
+            // Actualizar el avance del gasto
+            expense.Advance.Total = payments.Count();
+            expense.Advance.Completed = payments.Count(p => p.PaymentStatus == PaymentStatus.Paid);
+            expense.Advance.Pending = expense.Advance.Total - expense.Advance.Completed;
+
+            // Calcular el porcentaje pagado
+            var totalPaid = payments.Sum(p => p.AmountPaid);
+            var totalAdjusted = (expense.AdjustedIndividualAmount ?? expense.IndividualAmount) * expense.Advance.Total;
+            expense.PercentagePaid = totalAdjusted > 0 ? (totalPaid / totalAdjusted) * 100 : 0;
+
+            // Guardar los cambios en el gasto
+            await _expenseRepository.UpdateAsync(expense);
+
+            return expense;
         }
     }
 }

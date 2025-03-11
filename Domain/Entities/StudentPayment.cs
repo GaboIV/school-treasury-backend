@@ -15,6 +15,9 @@ namespace Domain.Entities
         [BsonElement("amountExpense")]
         public decimal AmountExpense { get; set; }
         
+        [BsonElement("adjustedAmountExpense")]
+        public decimal AdjustedAmountExpense { get; set; }
+        
         [BsonElement("amountPaid")]
         public decimal AmountPaid { get; set; } = 0;
         
@@ -29,6 +32,9 @@ namespace Domain.Entities
         
         [BsonElement("excedent")]
         public decimal Excedent { get; set; } = 0;
+        
+        [BsonElement("surplus")]
+        public decimal Surplus { get; set; } = 0;
         
         [BsonElement("pending")]
         public decimal Pending { get; set; }

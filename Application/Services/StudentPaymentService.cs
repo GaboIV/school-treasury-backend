@@ -156,29 +156,61 @@ namespace Application.Services
                 throw new KeyNotFoundException($"Pago con ID {id} no encontrado");
             }
 
-            // Actualizar los campos
+            // Obtener el gasto para verificar si tiene un monto ajustado
+            var expense = await _expenseRepository.GetByIdAsync(payment.ExpenseId);
+
+            // Actualizar el pago
             payment.AmountPaid = dto.AmountPaid;
-            
-            if (dto.Images != null && dto.Images.Count > 0)
+            payment.Voucher = dto.Voucher;
+            payment.Comment = dto.Comment;
+            payment.UpdatedAt = DateTime.UtcNow;
+
+            // Actualizar imágenes si se proporcionan
+            if (dto.Images != null && dto.Images.Any())
             {
                 payment.Images = dto.Images;
             }
-            
-            if (dto.Voucher != null)
+
+            // Actualizar el monto ajustado desde el gasto si existe
+            if (expense?.AdjustedIndividualAmount.HasValue == true)
             {
-                payment.Voucher = dto.Voucher;
+                payment.AdjustedAmountExpense = expense.AdjustedIndividualAmount.Value;
+                payment.Surplus = expense.TotalSurplus;
             }
             
-            if (dto.Comment != null)
+            // Determinar qué monto usar para las comparaciones (ajustado o original)
+            decimal amountToCompare = payment.AdjustedAmountExpense > 0 
+                ? payment.AdjustedAmountExpense 
+                : payment.AmountExpense;
+
+            // Actualizar el estado del pago
+            if (payment.AmountPaid >= amountToCompare)
             {
-                payment.Comment = dto.Comment;
+                payment.PaymentStatus = PaymentStatus.Paid;
+                payment.Excedent = payment.AmountPaid - amountToCompare;
+                payment.Pending = 0;
+                payment.PaymentDate = DateTime.UtcNow;
+            }
+            else if (payment.AmountPaid > 0)
+            {
+                payment.PaymentStatus = PaymentStatus.PartiallyPaid;
+                payment.Excedent = 0;
+                payment.Pending = amountToCompare - payment.AmountPaid;
+                payment.PaymentDate = DateTime.UtcNow;
+            }
+            else
+            {
+                payment.PaymentStatus = PaymentStatus.Pending;
+                payment.Excedent = 0;
+                payment.Pending = amountToCompare;
+                payment.PaymentDate = null;
             }
 
             await _paymentRepository.UpdateAsync(payment);
-            
+
             // Actualizar el avance del gasto
             await UpdateExpenseAdvance(payment.ExpenseId);
-            
+
             return await EnrichPaymentWithDetails(payment);
         }
 
@@ -298,6 +330,9 @@ namespace Application.Services
                 throw new KeyNotFoundException($"Pago con ID {dto.Id} no encontrado");
             }
 
+            // Obtener el gasto para verificar si tiene un monto ajustado
+            var expense = await _expenseRepository.GetByIdAsync(payment.ExpenseId);
+
             // Guardar las imágenes en la carpeta específica del pago
             var imagePaths = await _fileService.SaveImagesAsync(dto.Images, $"payments/{dto.Id}");
 
@@ -308,11 +343,23 @@ namespace Application.Services
             // Añadir las nuevas imágenes a la lista existente
             payment.Images.AddRange(imagePaths);
             
-            // Calcular el estado del pago
-            if (payment.AmountPaid >= payment.AmountExpense)
+            // Actualizar el monto ajustado desde el gasto si existe
+            if (expense?.AdjustedIndividualAmount.HasValue == true)
+            {
+                payment.AdjustedAmountExpense = expense.AdjustedIndividualAmount.Value;
+                payment.Surplus = expense.TotalSurplus;
+            }
+            
+            // Determinar qué monto usar para las comparaciones (ajustado o original)
+            decimal amountToCompare = payment.AdjustedAmountExpense > 0 
+                ? payment.AdjustedAmountExpense 
+                : payment.AmountExpense;
+            
+            // Calcular el estado del pago basado en el monto apropiado
+            if (payment.AmountPaid >= amountToCompare)
             {
                 payment.PaymentStatus = PaymentStatus.Paid;
-                payment.Excedent = payment.AmountPaid - payment.AmountExpense;
+                payment.Excedent = payment.AmountPaid - amountToCompare;
                 payment.Pending = 0;
                 payment.PaymentDate = DateTime.UtcNow;
             }
@@ -320,8 +367,14 @@ namespace Application.Services
             {
                 payment.PaymentStatus = PaymentStatus.PartiallyPaid;
                 payment.Excedent = 0;
-                payment.Pending = payment.AmountExpense - payment.AmountPaid;
+                payment.Pending = amountToCompare - payment.AmountPaid;
                 payment.PaymentDate = DateTime.UtcNow;
+            }
+            else
+            {
+                payment.PaymentStatus = PaymentStatus.Pending;
+                payment.Excedent = 0;
+                payment.Pending = amountToCompare;
             }
 
             // Guardar los cambios
@@ -368,11 +421,13 @@ namespace Application.Services
                 StudentName = student?.Name,
                 ExpenseName = expense?.Name,
                 AmountExpense = payment.AmountExpense,
+                AdjustedAmountExpense = payment.AdjustedAmountExpense,
                 AmountPaid = payment.AmountPaid,
                 PaymentStatus = payment.PaymentStatus,
                 Images = imageUrls,
                 Voucher = payment.Voucher,
                 Excedent = payment.Excedent,
+                Surplus = payment.Surplus,
                 Pending = payment.Pending,
                 Comment = payment.Comment,
                 PaymentDate = payment.PaymentDate,
@@ -385,17 +440,30 @@ namespace Application.Services
         {
             var expense = await _expenseRepository.GetByIdAsync(expenseId);
             if (expense == null) return;
-            
+
             var payments = await _paymentRepository.GetByExpenseIdAsync(expenseId);
             
-            // Contar pagos completados
-            int completedPayments = payments.Count(p => 
-                p.PaymentStatus == PaymentStatus.Paid || 
-                p.PaymentStatus == PaymentStatus.Excedent);
-            
             // Actualizar el avance
-            expense.Advance.Completed = completedPayments;
-            expense.Advance.Pending = expense.Advance.Total - completedPayments;
+            expense.Advance.Total = payments.Count();
+            expense.Advance.Completed = payments.Count(p => p.PaymentStatus == PaymentStatus.Paid);
+            expense.Advance.Pending = expense.Advance.Total - expense.Advance.Completed;
+            
+            // Calcular el porcentaje pagado basado en el monto ajustado si existe
+            var totalPaid = payments.Sum(p => p.AmountPaid);
+            decimal totalAmount;
+            
+            if (expense.AdjustedIndividualAmount.HasValue && expense.AdjustedIndividualAmount.Value > 0)
+            {
+                // Usar el monto ajustado
+                totalAmount = expense.AdjustedIndividualAmount.Value * expense.Advance.Total;
+            }
+            else
+            {
+                // Usar el monto original
+                totalAmount = expense.IndividualAmount * expense.Advance.Total;
+            }
+            
+            expense.PercentagePaid = totalAmount > 0 ? (totalPaid / totalAmount) * 100 : 0;
             
             await _expenseRepository.UpdateAsync(expense);
         }

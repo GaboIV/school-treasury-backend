@@ -119,4 +119,32 @@ public class ExpensesController : ControllerBase
         
         return Ok(response);
     }
+
+    [HttpPatch("{id}/adjust-amount")]
+    [ProducesResponseType(typeof(ApiResponse<ExpenseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<ValidationProblemDetails>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> AdjustExpenseAmount(string id, [FromBody] AdjustExpenseAmountDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            dto.Id = id; // Asegurar que el ID en el DTO coincida con el de la URL
+            var expense = await _expenseService.AdjustExpenseAmountAsync(id, dto);
+            var expenseDto = _mapper.Map<ExpenseDto>(expense);
+            var response = new ApiResponse<ExpenseDto>(expenseDto, "Monto ajustado correctamente");
+            return Ok(response);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ApiResponse<string>(ex.Message, "Not Found", false));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiResponse<string>($"Error al ajustar el monto: {ex.Message}", "Error", false));
+        }
+    }
 }

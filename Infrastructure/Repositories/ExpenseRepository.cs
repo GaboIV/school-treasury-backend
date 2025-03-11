@@ -57,6 +57,8 @@ namespace Infrastructure.Repositories
                             Name = expense.Name,
                             TotalAmount = expense.TotalAmount,
                             IndividualAmount = expense.IndividualAmount,
+                            AdjustedIndividualAmount = expense.AdjustedIndividualAmount,
+                            TotalSurplus = expense.TotalSurplus,
                             Date = expense.Date,
                             PercentagePaid = expense.PercentagePaid,
                             Advance = expense.Advance,

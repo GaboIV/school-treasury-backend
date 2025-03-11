@@ -21,6 +21,12 @@ namespace Domain.Entities {
         [BsonElement("individualAmount")]
         public decimal IndividualAmount { get; set; }
 
+        [BsonElement("adjustedIndividualAmount")]
+        public decimal? AdjustedIndividualAmount { get; set; }
+
+        [BsonElement("totalSurplus")]
+        public decimal TotalSurplus { get; set; }
+
         [BsonElement("date")]
         public DateTime Date { get; set; }
 
