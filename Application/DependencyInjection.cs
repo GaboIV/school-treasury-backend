@@ -13,6 +13,7 @@ namespace Application
             // Registrar servicios de la capa de Application
             services.AddScoped<IExpenseService, ExpenseService>();
             services.AddScoped<IExpenseTypeService, ExpenseTypeService>();
+            services.AddScoped<IStudentPaymentService, StudentPaymentService>();
 
             // Identificar mappings automáticamente
             services.AddAutoMapper(Assembly.GetExecutingAssembly());

@@ -1,6 +1,12 @@
 using Application.Interfaces;
+using Infrastructure.Persistence.Seeders;
 using Infrastructure.Repositories;
+using Infrastructure.Services;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
+using System;
+using System.Threading.Tasks;
 
 namespace Infrastructure
 {
@@ -23,8 +29,24 @@ namespace Infrastructure
 
             services.AddScoped<IExpenseRepository, ExpenseRepository>();
             services.AddScoped<IExpenseTypeRepository, ExpenseTypeRepository>();
+            services.AddScoped<IStudentRepository, StudentRepository>();
+            services.AddScoped<IStudentPaymentRepository, StudentPaymentRepository>();
+
+            // Registrar seeders
+            services.AddScoped<ISeeder, StudentSeeder>();
+            services.AddScoped<DatabaseSeeder>();
+
+            // Registrar servicios
+            services.AddScoped<IFileService, FileService>();
 
             return services;
+        }
+
+        public static async Task SeedDatabaseAsync(this IServiceProvider serviceProvider)
+        {
+            using var scope = serviceProvider.CreateScope();
+            var databaseSeeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+            await databaseSeeder.SeedAllAsync();
         }
     }
 }

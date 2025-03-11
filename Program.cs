@@ -18,6 +18,9 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader());
 });
 
+// Registrar HttpContextAccessor
+builder.Services.AddHttpContextAccessor();
+
 // Configuración de MongoDB
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -47,12 +50,32 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Ejecutar seeders
+await app.Services.SeedDatabaseAsync();
+
 // Configuración de Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Crear directorio wwwroot si no existe
+var wwwrootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+if (!Directory.Exists(wwwrootPath))
+{
+    Directory.CreateDirectory(wwwrootPath);
+}
+
+// Crear directorio uploads si no existe
+var uploadsPath = Path.Combine(wwwrootPath, "uploads");
+if (!Directory.Exists(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+}
+
+// Servir archivos estáticos
+app.UseStaticFiles();
 
 // Usar CORS
 app.UseCors("AllowAll");

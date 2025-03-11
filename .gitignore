@@ -24,3 +24,9 @@ docker-compose.override.yml
 *.tmp
 ~$*
 .fake
+
+# No subir lo que está dentro de wwwroot
+wwwroot/*
+
+# No subir lo que está dentro de uploads
+uploads/*

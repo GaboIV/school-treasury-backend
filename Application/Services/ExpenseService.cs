@@ -6,10 +6,14 @@ namespace Application.Services {
     public class ExpenseService : IExpenseService
     {
         private readonly IExpenseRepository _expenseRepository;
+        private readonly IStudentPaymentService _studentPaymentService;
 
-        public ExpenseService(IExpenseRepository expenseRepository)
+        public ExpenseService(
+            IExpenseRepository expenseRepository,
+            IStudentPaymentService studentPaymentService)
         {
             _expenseRepository = expenseRepository;
+            _studentPaymentService = studentPaymentService;
         }
 
         public async Task<List<Expense>> GetAllExpensesAsync()
@@ -52,6 +56,13 @@ namespace Application.Services {
             expense.Advance.Pending = totalStudents;
 
             await _expenseRepository.InsertAsync(expense);
+            
+            // Crear pagos para cada estudiante
+            if (dto.StudentQuantity == "all")
+            {
+                await _studentPaymentService.CreatePaymentsForExpenseAsync(expense.Id, individualAmount);
+            }
+            
             return expense;
         }
 
@@ -69,6 +80,10 @@ namespace Application.Services {
                 individualAmount = dto.TotalAmount / totalStudents;
             }
 
+            // Guardar el monto individual anterior para comparar
+            decimal previousIndividualAmount = existingExpense.IndividualAmount;
+            string previousStudentQuantity = existingExpense.StudentQuantity;
+
             existingExpense.Name = dto.Name ?? "";
             existingExpense.ExpenseTypeId = dto.ExpenseTypeId ?? "";
             existingExpense.Date = dto.Date;
@@ -82,6 +97,22 @@ namespace Application.Services {
             existingExpense.Advance.Pending = totalStudents - existingExpense.Advance.Completed;
             
             await _expenseRepository.UpdateAsync(existingExpense);
+            
+            // Actualizar pagos de estudiantes si el monto individual cambió
+            if (dto.StudentQuantity == "all")
+            {
+                if (previousStudentQuantity != "all")
+                {
+                    // Si antes no era para todos los estudiantes, crear los pagos
+                    await _studentPaymentService.CreatePaymentsForExpenseAsync(existingExpense.Id, individualAmount);
+                }
+                else if (previousIndividualAmount != individualAmount)
+                {
+                    // Si el monto individual cambió, actualizar los pagos existentes
+                    await _studentPaymentService.UpdatePaymentsForExpenseAsync(existingExpense.Id, individualAmount);
+                }
+            }
+            
             return existingExpense;
         }
 
