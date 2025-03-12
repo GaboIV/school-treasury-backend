@@ -13,6 +13,8 @@ namespace Application.DTOs
         public decimal IndividualAmount { get; set; }
         public decimal? AdjustedIndividualAmount { get; set; }
         public decimal TotalSurplus { get; set; }
+        public decimal TotalPaid { get; set; }
+        public decimal TotalPending { get; set; }
         public DateTime Date { get; set; }
         public decimal PercentagePaid { get; set; }
         public Advance Advance { get; set; } = new Advance();

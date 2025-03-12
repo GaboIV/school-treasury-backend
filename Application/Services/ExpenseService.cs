@@ -12,13 +12,16 @@ namespace Application.Services {
     {
         private readonly IExpenseRepository _expenseRepository;
         private readonly IStudentPaymentRepository _studentPaymentRepository;
+        private readonly IPettyCashService _pettyCashService;
 
         public ExpenseService(
             IExpenseRepository expenseRepository,
-            IStudentPaymentRepository studentPaymentRepository)
+            IStudentPaymentRepository studentPaymentRepository,
+            IPettyCashService pettyCashService)
         {
             _expenseRepository = expenseRepository;
             _studentPaymentRepository = studentPaymentRepository;
+            _pettyCashService = pettyCashService;
         }
 
         public async Task<IEnumerable<Expense>> GetAllExpensesAsync()
@@ -39,7 +42,7 @@ namespace Application.Services {
         public async Task<Expense> CreateExpenseAsync(CreateExpenseDto dto)
         {
             decimal individualAmount = 0;
-            int totalStudents = 25;
+            int totalStudents = 24;
             
             if (dto.StudentQuantity == "all") {
                 individualAmount = dto.TotalAmount / totalStudents;
@@ -67,6 +70,9 @@ namespace Application.Services {
             {
                 await _studentPaymentRepository.CreatePaymentsForExpenseAsync(expense.Id, individualAmount);
             }
+
+            // Ya no registramos el gasto en la caja chica
+            // Los gastos no afectan la caja chica, solo los pagos de estudiantes
             
             return expense;
         }
@@ -74,12 +80,15 @@ namespace Application.Services {
         public async Task<Expense?> UpdateExpenseAsync(UpdateExpenseDto dto)
         {
             decimal individualAmount = 0;
-            int totalStudents = 25;
+            int totalStudents = 24;
 
             var existingExpense = await _expenseRepository.GetByIdAsync(dto.Id!);
             
             if (existingExpense == null)
                 return null;
+
+            // Guardar el monto total anterior para comparar
+            decimal previousTotalAmount = existingExpense.TotalAmount;
 
             if (dto.StudentQuantity == "all") {
                 individualAmount = dto.TotalAmount / totalStudents;
@@ -117,6 +126,9 @@ namespace Application.Services {
                     await _studentPaymentRepository.UpdatePaymentsForExpenseAsync(existingExpense.Id, individualAmount);
                 }
             }
+
+            // Ya no registramos cambios en la caja chica cuando cambia el monto del gasto
+            // Los gastos no afectan la caja chica, solo los pagos de estudiantes
             
             return existingExpense;
         }
@@ -132,6 +144,9 @@ namespace Application.Services {
             var existsExpenses = await ExistsExpenseWithTypeIdAsync(id);
             if (existsExpenses)
                 return false;
+
+            // Ya no registramos cambios en la caja chica cuando se elimina un gasto
+            // Los gastos no afectan la caja chica, solo los pagos de estudiantes
 
             return await _expenseRepository.DeleteAsync(id);
         }
@@ -155,9 +170,16 @@ namespace Application.Services {
                 throw new KeyNotFoundException($"Gasto con ID {id} no encontrado");
             }
 
+            // Guardar montos anteriores para comparar
+            decimal previousAdjustedAmount = expense.AdjustedIndividualAmount ?? expense.IndividualAmount;
+            decimal previousTotalAdjustedAmount = previousAdjustedAmount * expense.Advance.Total;
+
             // Actualizar el monto ajustado y el excedente total
             expense.AdjustedIndividualAmount = dto.AdjustedAmount;
             expense.TotalSurplus = dto.Surplus;
+
+            // Calcular el nuevo monto total ajustado
+            decimal newTotalAdjustedAmount = dto.AdjustedAmount * expense.Advance.Total;
 
             // Obtener todos los pagos relacionados con este gasto
             var payments = await _studentPaymentRepository.GetByExpenseIdAsync(id);
@@ -207,6 +229,9 @@ namespace Application.Services {
             var totalPaid = payments.Sum(p => p.AmountPaid);
             var totalAdjusted = (expense.AdjustedIndividualAmount ?? expense.IndividualAmount) * expense.Advance.Total;
             expense.PercentagePaid = totalAdjusted > 0 ? (totalPaid / totalAdjusted) * 100 : 0;
+
+            // Ya no registramos cambios en la caja chica cuando cambia el monto ajustado
+            // Los gastos no afectan la caja chica, solo los pagos de estudiantes
 
             // Guardar los cambios en el gasto
             await _expenseRepository.UpdateAsync(expense);

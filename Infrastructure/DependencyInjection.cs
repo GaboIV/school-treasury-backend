@@ -2,11 +2,7 @@ using Application.Interfaces;
 using Infrastructure.Persistence.Seeders;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
-using System;
-using System.Threading.Tasks;
 
 namespace Infrastructure
 {
@@ -38,6 +34,8 @@ namespace Infrastructure
 
             // Registrar servicios
             services.AddScoped<IFileService, FileService>();
+            services.AddScoped<IPettyCashRepository, PettyCashRepository>();
+            services.AddScoped<ITransactionLogRepository, TransactionLogRepository>();
 
             return services;
         }

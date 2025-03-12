@@ -1,8 +1,6 @@
-using System.Reflection;
 using Application.Interfaces;
 using Application.Services;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+using Infrastructure.Repositories;
 
 namespace Application
 {
@@ -16,7 +14,27 @@ namespace Application
             services.AddScoped<IStudentPaymentService, StudentPaymentService>();
 
             // Identificar mappings automáticamente
-            services.AddAutoMapper(Assembly.GetExecutingAssembly());
+            services.AddAutoMapper(typeof(DependencyInjection).Assembly);
+
+            // ExpenseType
+            services.AddScoped<IExpenseTypeRepository, ExpenseTypeRepository>();
+            services.AddScoped<IExpenseTypeService, ExpenseTypeService>();
+
+            // Expense
+            services.AddScoped<IExpenseRepository, ExpenseRepository>();
+            services.AddScoped<IExpenseService, ExpenseService>();
+
+            // Student
+            services.AddScoped<IStudentRepository, StudentRepository>();
+
+            // StudentPayment
+            services.AddScoped<IStudentPaymentRepository, StudentPaymentRepository>();
+            services.AddScoped<IStudentPaymentService, StudentPaymentService>();
+
+            // PettyCash y Logs
+            services.AddScoped<IPettyCashService, PettyCashService>();
+            services.AddScoped<ITransactionLogService, TransactionLogService>();
+            services.AddScoped<ITransactionRepository, TransactionRepository>();
 
             return services;
         }

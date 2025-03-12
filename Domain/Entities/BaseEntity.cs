@@ -11,7 +11,7 @@ namespace Domain.Entities
         public string? Id { get; set; }
 
         [BsonElement("status")]
-        public bool? Status { get; set; }
+        public bool? Status { get; set; } = true;
 
         [BsonElement("createdAt")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

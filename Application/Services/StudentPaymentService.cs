@@ -14,17 +14,20 @@ namespace Application.Services
         private readonly IStudentRepository _studentRepository;
         private readonly IExpenseRepository _expenseRepository;
         private readonly IFileService _fileService;
+        private readonly IPettyCashService _pettyCashService;
 
         public StudentPaymentService(
             IStudentPaymentRepository paymentRepository,
             IStudentRepository studentRepository,
             IExpenseRepository expenseRepository,
-            IFileService fileService)
+            IFileService fileService,
+            IPettyCashService pettyCashService)
         {
             _paymentRepository = paymentRepository;
             _studentRepository = studentRepository;
             _expenseRepository = expenseRepository;
             _fileService = fileService;
+            _pettyCashService = pettyCashService;
         }
 
         public async Task<IEnumerable<StudentPaymentDto>> GetAllPaymentsAsync()
@@ -119,12 +122,14 @@ namespace Application.Services
                 Pending = expense.IndividualAmount - dto.AmountPaid
             };
 
+            var individualAmount = (expense.AdjustedIndividualAmount != null ? expense.AdjustedIndividualAmount : expense.IndividualAmount) ?? 0;
+
             // Establecer el estado del pago
-            if (dto.AmountPaid >= expense.IndividualAmount)
+            if (dto.AmountPaid >= individualAmount)
             {
-                if (dto.AmountPaid > expense.IndividualAmount)
+                if (dto.AmountPaid > individualAmount)
                 {
-                    payment.Excedent = dto.AmountPaid - expense.IndividualAmount;
+                    payment.Excedent = dto.AmountPaid - individualAmount;
                     payment.PaymentStatus = PaymentStatus.Excedent;
                 }
                 else
@@ -158,6 +163,9 @@ namespace Application.Services
 
             // Obtener el gasto para verificar si tiene un monto ajustado
             var expense = await _expenseRepository.GetByIdAsync(payment.ExpenseId);
+
+            // Guardar monto anterior para comparar
+            decimal previousAmountPaid = payment.AmountPaid;
 
             // Actualizar el pago
             payment.AmountPaid = dto.AmountPaid;
@@ -210,6 +218,34 @@ namespace Application.Services
 
             // Actualizar el avance del gasto
             await UpdateExpenseAdvance(payment.ExpenseId);
+
+            // Si es un pago nuevo (antes era 0), registrar un egreso en caja chica
+            if (previousAmountPaid == 0 && payment.AmountPaid > 0)
+            {
+                // Obtener el nombre del estudiante
+                var student = await _studentRepository.GetByIdAsync(payment.StudentId);
+                string studentName = student?.Name ?? "Desconocido";
+                
+                await _pettyCashService.RegisterExpenseFromPaymentAsync(
+                    payment.Id,
+                    payment.AmountPaid,
+                    $"Registro de pago para {expense?.Name} - Estudiante: {studentName}"
+                );
+            }
+
+            // Si hay excedente, registrar un ingreso en caja chica
+            if (payment.Excedent > 0)
+            {
+                // Obtener el nombre del estudiante
+                var student = await _studentRepository.GetByIdAsync(payment.StudentId);
+                string studentName = student?.Name ?? "Desconocido";
+                
+                await _pettyCashService.RegisterIncomeFromExcedentAsync(
+                    payment.Id,
+                    payment.Excedent,
+                    $"Excedente de pago para {expense?.Name} - Estudiante: {studentName}"
+                );
+            }
 
             return await EnrichPaymentWithDetails(payment);
         }
@@ -336,6 +372,9 @@ namespace Application.Services
             // Guardar las imágenes en la carpeta específica del pago
             var imagePaths = await _fileService.SaveImagesAsync(dto.Images, $"payments/{dto.Id}");
 
+            // Guardar monto anterior para comparar
+            decimal previousAmountPaid = payment.AmountPaid;
+
             // Actualizar el pago
             payment.AmountPaid = dto.AmountPaid;
             payment.Comment = dto.Comment;
@@ -383,6 +422,34 @@ namespace Application.Services
             // Actualizar el avance del gasto
             await UpdateExpenseAdvance(payment.ExpenseId);
 
+            // Si es un pago nuevo (antes era 0), registrar un egreso en caja chica
+            if (previousAmountPaid == 0 && payment.AmountPaid > 0)
+            {
+                // Obtener el nombre del estudiante
+                var student = await _studentRepository.GetByIdAsync(payment.StudentId);
+                string studentName = student?.Name ?? "Desconocido";
+                
+                await _pettyCashService.RegisterIncomeFromExcedentAsync(
+                    payment.Id,
+                    payment.AmountPaid,
+                    $"Registro de pago para {expense?.Name} - Estudiante: {studentName}"
+                );
+            }
+
+            // Si hay excedente, registrar un ingreso en caja chica
+            // if (payment.Excedent > 0)
+            // {
+            //     // Obtener el nombre del estudiante si no se ha obtenido ya
+            //     var student = payment.StudentName != null ? null : await _studentRepository.GetByIdAsync(payment.StudentId);
+            //     string studentName = payment.StudentName ?? student?.Name ?? "Desconocido";
+            //     
+            //     await _pettyCashService.RegisterIncomeFromExcedentAsync(
+            //         payment.Id,
+            //         payment.Excedent,
+            //         $"Excedente de pago para {expense?.Name} - Estudiante: {studentName}"
+            //     );
+            // }
+            
             // Retornar el DTO enriquecido
             return await EnrichPaymentWithDetails(payment);
         }
@@ -403,6 +470,11 @@ namespace Application.Services
         {
             var student = await _studentRepository.GetByIdAsync(payment.StudentId);
             var expense = await _expenseRepository.GetByIdAsync(payment.ExpenseId);
+
+            // Determinar el monto que se debe mostrar
+            decimal amountToShow = payment.AdjustedAmountExpense > 0 
+                ? payment.AdjustedAmountExpense 
+                : payment.AmountExpense;
 
             var imageUrls = new List<string>();
             foreach (var imagePath in payment.Images)
