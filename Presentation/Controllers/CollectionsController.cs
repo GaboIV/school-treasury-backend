@@ -6,61 +6,61 @@ using Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
-[Route("api/v1/expenses")]
-public class ExpensesController : ControllerBase
+[Route("api/v1/collections")]
+public class CollectionsController : ControllerBase
 {
-    private readonly IExpenseService _expenseService;
+    private readonly ICollectionService _collectionService;
     private readonly IMapper _mapper;
 
-    public ExpensesController(IExpenseService expenseService, IMapper mapper)
+    public CollectionsController(ICollectionService collectionService, IMapper mapper)
     {
-        _expenseService = expenseService;
+        _collectionService = collectionService;
         _mapper = mapper;
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<IEnumerable<ExpenseDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<CollectionDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> GetAllExpenses()
+    public async Task<IActionResult> GetAllCollections()
     {
-        var expenses = await _expenseService.GetAllExpensesAsync();
-        var expenseDtos = _mapper.Map<IEnumerable<ExpenseDto>>(expenses);
-        var response = new ApiResponse<IEnumerable<ExpenseDto>>(expenseDtos);
+        var collections = await _collectionService.GetAllCollectionsAsync();
+        var collectionDtos = _mapper.Map<IEnumerable<CollectionDto>>(collections);
+        var response = new ApiResponse<IEnumerable<CollectionDto>>(collectionDtos);
         return Ok(response);
     }
 
     [HttpPost]
-    [ProducesResponseType(typeof(ApiResponse<ExpenseDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<CollectionDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<ValidationProblemDetails>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> CreateExpense([FromBody] CreateExpenseDto dto)
+    public async Task<IActionResult> CreateCollection([FromBody] CreateCollectionDto dto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var expense = await _expenseService.CreateExpenseAsync(dto);
-        var expenseDto = _mapper.Map<ExpenseDto>(expense);
-        var response = new ApiResponse<ExpenseDto>(expenseDto);
-        return CreatedAtAction(nameof(GetAllExpenses), new { id = expense.Id }, response);
+        var collection = await _collectionService.CreateCollectionAsync(dto);
+        var collectionDto = _mapper.Map<CollectionDto>(collection);
+        var response = new ApiResponse<CollectionDto>(collectionDto);
+        return CreatedAtAction(nameof(GetAllCollections), new { id = collection.Id }, response);
     }
 
     [HttpPut]
-    [ProducesResponseType(typeof(ApiResponse<ExpenseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<CollectionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<ValidationProblemDetails>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> UpdateExpense([FromBody] UpdateExpenseDto dto)
+    public async Task<IActionResult> UpdateCollection([FromBody] UpdateCollectionDto dto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var expense = await _expenseService.UpdateExpenseAsync(dto);
+        var collection = await _collectionService.UpdateCollectionAsync(dto);
         
-        if (expense == null)
+        if (collection == null)
             return NotFound(new ApiResponse<string>("Tipo de gasto no encontrado", "Not Found", false));
 
-        var expenseDto = _mapper.Map<ExpenseDto>(expense);
-        var response = new ApiResponse<ExpenseDto>(expenseDto);
+        var collectionDto = _mapper.Map<CollectionDto>(collection);
+        var response = new ApiResponse<CollectionDto>(collectionDto);
         return Ok(response);
     }
 
@@ -69,12 +69,12 @@ public class ExpensesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> DeleteExpense(string id)
+    public async Task<IActionResult> DeleteCollection(string id)
     {
         if (string.IsNullOrEmpty(id))
             return BadRequest(new ApiResponse<string>("El ID no puede estar vacío", "Bad Request", false));
 
-        var result = await _expenseService.DeleteExpenseAsync(id);
+        var result = await _collectionService.DeleteCollectionAsync(id);
         
         if (!result)
             return NotFound(new ApiResponse<string>("Tipo de gasto no encontrado", "Not Found", false));
@@ -83,9 +83,9 @@ public class ExpensesController : ControllerBase
     }
 
     [HttpGet("paginated")]
-    [ProducesResponseType(typeof(ApiResponse<PaginatedResponseDto<IEnumerable<ExpenseDto>>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PaginatedResponseDto<IEnumerable<CollectionDto>>>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> GetPaginatedExpenses([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    public async Task<IActionResult> GetPaginatedCollections([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         // Validar parámetros de paginación
         if (page < 1)
@@ -95,10 +95,10 @@ public class ExpensesController : ControllerBase
             pageSize = 50;
         
         // Obtener datos paginados
-        var (expenses, totalCount) = await _expenseService.GetPaginatedExpensesAsync(page, pageSize);
+        var (collections, totalCount) = await _collectionService.GetPaginatedCollectionsAsync(page, pageSize);
         
         // Mapear a DTOs
-        var expenseDtos = _mapper.Map<IEnumerable<ExpenseDto>>(expenses);
+        var collectionDtos = _mapper.Map<IEnumerable<CollectionDto>>(collections);
         
         // Calcular información de paginación
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
@@ -112,20 +112,20 @@ public class ExpensesController : ControllerBase
         };
         
         // Crear respuesta paginada
-        var paginatedResponse = new PaginatedResponseDto<IEnumerable<ExpenseDto>>(expenseDtos, paginationInfo);
+        var paginatedResponse = new PaginatedResponseDto<IEnumerable<CollectionDto>>(collectionDtos, paginationInfo);
         
         // Envolver en ApiResponse
-        var response = new ApiResponse<PaginatedResponseDto<IEnumerable<ExpenseDto>>>(paginatedResponse);
+        var response = new ApiResponse<PaginatedResponseDto<IEnumerable<CollectionDto>>>(paginatedResponse);
         
         return Ok(response);
     }
 
     [HttpPatch("{id}/adjust-amount")]
-    [ProducesResponseType(typeof(ApiResponse<ExpenseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<CollectionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<ValidationProblemDetails>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> AdjustExpenseAmount(string id, [FromBody] AdjustExpenseAmountDto dto)
+    public async Task<IActionResult> AdjustCollectionAmount(string id, [FromBody] AdjustCollectionAmountDto dto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -133,9 +133,9 @@ public class ExpensesController : ControllerBase
         try
         {
             dto.Id = id; // Asegurar que el ID en el DTO coincida con el de la URL
-            var expense = await _expenseService.AdjustExpenseAmountAsync(id, dto);
-            var expenseDto = _mapper.Map<ExpenseDto>(expense);
-            var response = new ApiResponse<ExpenseDto>(expenseDto, "Monto ajustado correctamente");
+            var collection = await _collectionService.AdjustCollectionAmountAsync(id, dto);
+            var collectionDto = _mapper.Map<CollectionDto>(collection);
+            var response = new ApiResponse<CollectionDto>(collectionDto, "Monto ajustado correctamente");
             return Ok(response);
         }
         catch (KeyNotFoundException ex)

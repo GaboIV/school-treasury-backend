@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Application.DTOs
 {
-    public class UpdateExpenseDto
+    public class UpdateCollectionDto
     {
         [Required]
         public string? Id { get; set; }
@@ -10,7 +10,7 @@ namespace Application.DTOs
         public string? Name { get; set; }
 
         [Required]
-        public string? ExpenseTypeId { get; set; }
+        public string? CollectionTypeId { get; set; }
 
         [Required]
         public DateTime Date { get; set; }

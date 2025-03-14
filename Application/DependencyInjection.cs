@@ -9,20 +9,20 @@ namespace Application
         public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
         {
             // Registrar servicios de la capa de Application
-            services.AddScoped<IExpenseService, ExpenseService>();
-            services.AddScoped<IExpenseTypeService, ExpenseTypeService>();
+            services.AddScoped<ICollectionService, CollectionService>();
+            services.AddScoped<ICollectionTypeService, CollectionTypeService>();
             services.AddScoped<IStudentPaymentService, StudentPaymentService>();
 
             // Identificar mappings automáticamente
             services.AddAutoMapper(typeof(DependencyInjection).Assembly);
 
-            // ExpenseType
-            services.AddScoped<IExpenseTypeRepository, ExpenseTypeRepository>();
-            services.AddScoped<IExpenseTypeService, ExpenseTypeService>();
+            // CollectionType
+            services.AddScoped<ICollectionTypeRepository, CollectionTypeRepository>();
+            services.AddScoped<ICollectionTypeService, CollectionTypeService>();
 
-            // Expense
-            services.AddScoped<IExpenseRepository, ExpenseRepository>();
-            services.AddScoped<IExpenseService, ExpenseService>();
+            // Collection
+            services.AddScoped<ICollectionRepository, CollectionRepository>();
+            services.AddScoped<ICollectionService, CollectionService>();
 
             // Student
             services.AddScoped<IStudentRepository, StudentRepository>();

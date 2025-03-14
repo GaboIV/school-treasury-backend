@@ -34,9 +34,9 @@ namespace Infrastructure.Repositories
             return await _paymentCollection.Find(payment => payment.StudentId == studentId && payment.Status == true).ToListAsync();
         }
 
-        public async Task<IEnumerable<StudentPayment>> GetByExpenseIdAsync(string expenseId)
+        public async Task<IEnumerable<StudentPayment>> GetByCollectionIdAsync(string collectionId)
         {
-            return await _paymentCollection.Find(payment => payment.ExpenseId == expenseId && payment.Status == true).ToListAsync();
+            return await _paymentCollection.Find(payment => payment.CollectionId == collectionId && payment.Status == true).ToListAsync();
         }
 
         public async Task<IEnumerable<StudentPayment>> GetPendingPaymentsByStudentIdAsync(string studentId)
@@ -53,7 +53,7 @@ namespace Infrastructure.Repositories
             payment.Status = true;
             payment.CreatedAt = DateTime.UtcNow;
             payment.UpdatedAt = DateTime.UtcNow;
-            payment.Pending = payment.AmountExpense - payment.AmountPaid;
+            payment.Pending = payment.AmountCollection - payment.AmountPaid;
             
             await _paymentCollection.InsertOneAsync(payment);
             return payment;
@@ -62,14 +62,14 @@ namespace Infrastructure.Repositories
         public async Task UpdateAsync(StudentPayment payment)
         {
             payment.UpdatedAt = DateTime.UtcNow;
-            payment.Pending = payment.AmountExpense - payment.AmountPaid;
+            payment.Pending = payment.AmountCollection - payment.AmountPaid;
             
             // Actualizar el estado del pago basado en los montos
-            if (payment.AmountPaid >= payment.AmountExpense)
+            if (payment.AmountPaid >= payment.AmountCollection)
             {
-                if (payment.AmountPaid > payment.AmountExpense)
+                if (payment.AmountPaid > payment.AmountCollection)
                 {
-                    payment.Excedent = payment.AmountPaid - payment.AmountExpense;
+                    payment.Excedent = payment.AmountPaid - payment.AmountCollection;
                     payment.PaymentStatus = PaymentStatus.Excedent;
                 }
                 else
@@ -113,7 +113,7 @@ namespace Infrastructure.Repositories
                 payment.Status = true;
                 payment.CreatedAt = DateTime.UtcNow;
                 payment.UpdatedAt = DateTime.UtcNow;
-                payment.Pending = payment.AmountExpense - payment.AmountPaid;
+                payment.Pending = payment.AmountCollection - payment.AmountPaid;
                 paymentsList.Add(payment);
             }
             
@@ -128,14 +128,14 @@ namespace Infrastructure.Repositories
             foreach (var payment in payments)
             {
                 payment.UpdatedAt = DateTime.UtcNow;
-                payment.Pending = payment.AmountExpense - payment.AmountPaid;
+                payment.Pending = payment.AmountCollection - payment.AmountPaid;
                 
                 // Actualizar el estado del pago basado en los montos
-                if (payment.AmountPaid >= payment.AmountExpense)
+                if (payment.AmountPaid >= payment.AmountCollection)
                 {
-                    if (payment.AmountPaid > payment.AmountExpense)
+                    if (payment.AmountPaid > payment.AmountCollection)
                     {
-                        payment.Excedent = payment.AmountPaid - payment.AmountExpense;
+                        payment.Excedent = payment.AmountPaid - payment.AmountCollection;
                         payment.PaymentStatus = PaymentStatus.Excedent;
                     }
                     else
@@ -177,15 +177,15 @@ namespace Infrastructure.Repositories
             }
         }
 
-        public async Task CreatePaymentsForExpenseAsync(string expenseId, decimal individualAmount)
+        public async Task CreatePaymentsForCollectionAsync(string collectionId, decimal individualAmount)
         {
             var students = await _studentCollection.Find(_ => true).ToListAsync();
             var payments = students.Select(student => new StudentPayment
             {
-                ExpenseId = expenseId,
+                CollectionId = collectionId,
                 StudentId = student.Id,
-                AmountExpense = individualAmount,
-                AdjustedAmountExpense = individualAmount,
+                AmountCollection = individualAmount,
+                AdjustedAmountCollection = individualAmount,
                 PaymentStatus = PaymentStatus.Pending,
                 Pending = individualAmount,
                 CreatedAt = DateTime.UtcNow,
@@ -195,13 +195,13 @@ namespace Infrastructure.Repositories
             await _paymentCollection.InsertManyAsync(payments);
         }
 
-        public async Task UpdatePaymentsForExpenseAsync(string expenseId, decimal newIndividualAmount)
+        public async Task UpdatePaymentsForCollectionAsync(string collectionId, decimal newIndividualAmount)
         {
-            var payments = await GetByExpenseIdAsync(expenseId);
+            var payments = await GetByCollectionIdAsync(collectionId);
             foreach (var payment in payments)
             {
-                payment.AmountExpense = newIndividualAmount;
-                payment.AdjustedAmountExpense = newIndividualAmount;
+                payment.AmountCollection = newIndividualAmount;
+                payment.AdjustedAmountCollection = newIndividualAmount;
                 payment.Pending = newIndividualAmount - payment.AmountPaid;
                 payment.UpdatedAt = DateTime.UtcNow;
 

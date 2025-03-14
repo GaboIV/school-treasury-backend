@@ -12,20 +12,20 @@ namespace Application.Services
     {
         private readonly IStudentPaymentRepository _paymentRepository;
         private readonly IStudentRepository _studentRepository;
-        private readonly IExpenseRepository _expenseRepository;
+        private readonly ICollectionRepository _collectionRepository;
         private readonly IFileService _fileService;
         private readonly IPettyCashService _pettyCashService;
 
         public StudentPaymentService(
             IStudentPaymentRepository paymentRepository,
             IStudentRepository studentRepository,
-            IExpenseRepository expenseRepository,
+            ICollectionRepository collectionRepository,
             IFileService fileService,
             IPettyCashService pettyCashService)
         {
             _paymentRepository = paymentRepository;
             _studentRepository = studentRepository;
-            _expenseRepository = expenseRepository;
+            _collectionRepository = collectionRepository;
             _fileService = fileService;
             _pettyCashService = pettyCashService;
         }
@@ -53,9 +53,9 @@ namespace Application.Services
             return await EnrichPaymentsWithDetails(payments);
         }
 
-        public async Task<IEnumerable<StudentPaymentDto>> GetPaymentsByExpenseIdAsync(string expenseId)
+        public async Task<IEnumerable<StudentPaymentDto>> GetPaymentsByCollectionIdAsync(string collectionId)
         {
-            var payments = await _paymentRepository.GetByExpenseIdAsync(expenseId);
+            var payments = await _paymentRepository.GetByCollectionIdAsync(collectionId);
             return await EnrichPaymentsWithDetails(payments);
         }
 
@@ -75,14 +75,14 @@ namespace Application.Services
             }
 
             // Verificar que el gasto existe
-            var expense = await _expenseRepository.GetByIdAsync(dto.ExpenseId);
-            if (expense == null)
+            var collection = await _collectionRepository.GetByIdAsync(dto.CollectionId);
+            if (collection == null)
             {
-                throw new KeyNotFoundException($"Gasto con ID {dto.ExpenseId} no encontrado");
+                throw new KeyNotFoundException($"Gasto con ID {dto.CollectionId} no encontrado");
             }
 
             // Verificar si ya existe un pago para este estudiante y gasto
-            var existingPayments = await _paymentRepository.GetByExpenseIdAsync(dto.ExpenseId);
+            var existingPayments = await _paymentRepository.GetByCollectionIdAsync(dto.CollectionId);
             var existingPayment = existingPayments.FirstOrDefault(p => p.StudentId == dto.StudentId);
 
             if (existingPayment != null)
@@ -112,17 +112,17 @@ namespace Application.Services
             // Crear un nuevo pago
             var payment = new StudentPayment
             {
-                ExpenseId = dto.ExpenseId,
+                CollectionId = dto.CollectionId,
                 StudentId = dto.StudentId,
-                AmountExpense = expense.IndividualAmount,
+                AmountCollection = collection.IndividualAmount,
                 AmountPaid = dto.AmountPaid,
                 Images = dto.Images,
                 Voucher = dto.Voucher,
                 Comment = dto.Comment,
-                Pending = expense.IndividualAmount - dto.AmountPaid
+                Pending = collection.IndividualAmount - dto.AmountPaid
             };
 
-            var individualAmount = (expense.AdjustedIndividualAmount != null ? expense.AdjustedIndividualAmount : expense.IndividualAmount) ?? 0;
+            var individualAmount = (collection.AdjustedIndividualAmount != null ? collection.AdjustedIndividualAmount : collection.IndividualAmount) ?? 0;
 
             // Establecer el estado del pago
             if (dto.AmountPaid >= individualAmount)
@@ -148,7 +148,7 @@ namespace Application.Services
             await _paymentRepository.CreateAsync(payment);
             
             // Actualizar el avance del gasto
-            await UpdateExpenseAdvance(expense.Id);
+            await UpdateCollectionAdvance(collection.Id);
             
             return await EnrichPaymentWithDetails(payment);
         }
@@ -162,7 +162,7 @@ namespace Application.Services
             }
 
             // Obtener el gasto para verificar si tiene un monto ajustado
-            var expense = await _expenseRepository.GetByIdAsync(payment.ExpenseId);
+            var collection = await _collectionRepository.GetByIdAsync(payment.CollectionId);
 
             // Guardar monto anterior para comparar
             decimal previousAmountPaid = payment.AmountPaid;
@@ -180,16 +180,16 @@ namespace Application.Services
             }
 
             // Actualizar el monto ajustado desde el gasto si existe
-            if (expense?.AdjustedIndividualAmount.HasValue == true)
+            if (collection?.AdjustedIndividualAmount.HasValue == true)
             {
-                payment.AdjustedAmountExpense = expense.AdjustedIndividualAmount.Value;
-                payment.Surplus = expense.TotalSurplus;
+                payment.AdjustedAmountCollection = collection.AdjustedIndividualAmount.Value;
+                payment.Surplus = collection.TotalSurplus;
             }
             
             // Determinar qué monto usar para las comparaciones (ajustado o original)
-            decimal amountToCompare = payment.AdjustedAmountExpense > 0 
-                ? payment.AdjustedAmountExpense 
-                : payment.AmountExpense;
+            decimal amountToCompare = payment.AdjustedAmountCollection > 0 
+                ? payment.AdjustedAmountCollection 
+                : payment.AmountCollection;
 
             // Actualizar el estado del pago
             if (payment.AmountPaid >= amountToCompare)
@@ -217,7 +217,7 @@ namespace Application.Services
             await _paymentRepository.UpdateAsync(payment);
 
             // Actualizar el avance del gasto
-            await UpdateExpenseAdvance(payment.ExpenseId);
+            await UpdateCollectionAdvance(payment.CollectionId);
 
             // Si es un pago nuevo (antes era 0), registrar un egreso en caja chica
             if (previousAmountPaid == 0 && payment.AmountPaid > 0)
@@ -229,7 +229,7 @@ namespace Application.Services
                 await _pettyCashService.RegisterExpenseFromPaymentAsync(
                     payment.Id,
                     payment.AmountPaid,
-                    $"Registro de pago para {expense?.Name} - Estudiante: {studentName}"
+                    $"Registro de pago para {collection?.Name} - Estudiante: {studentName}"
                 );
             }
 
@@ -243,7 +243,7 @@ namespace Application.Services
                 await _pettyCashService.RegisterIncomeFromExcedentAsync(
                     payment.Id,
                     payment.Excedent,
-                    $"Excedente de pago para {expense?.Name} - Estudiante: {studentName}"
+                    $"Excedente de pago para {collection?.Name} - Estudiante: {studentName}"
                 );
             }
 
@@ -258,21 +258,21 @@ namespace Application.Services
                 throw new KeyNotFoundException($"Pago con ID {id} no encontrado");
             }
 
-            string expenseId = payment.ExpenseId;
+            string collectionId = payment.CollectionId;
             
             await _paymentRepository.DeleteAsync(id);
             
             // Actualizar el avance del gasto
-            await UpdateExpenseAdvance(expenseId);
+            await UpdateCollectionAdvance(collectionId);
         }
 
-        public async Task<IEnumerable<StudentPaymentDto>> CreatePaymentsForExpenseAsync(string expenseId, decimal individualAmount)
+        public async Task<IEnumerable<StudentPaymentDto>> CreatePaymentsForCollectionAsync(string collectionId, decimal individualAmount)
         {
             // Verificar que el gasto existe
-            var expense = await _expenseRepository.GetByIdAsync(expenseId);
-            if (expense == null)
+            var collection = await _collectionRepository.GetByIdAsync(collectionId);
+            if (collection == null)
             {
-                throw new KeyNotFoundException($"Gasto con ID {expenseId} no encontrado");
+                throw new KeyNotFoundException($"Gasto con ID {collectionId} no encontrado");
             }
 
             // Obtener todos los estudiantes
@@ -285,9 +285,9 @@ namespace Application.Services
             {
                 payments.Add(new StudentPayment
                 {
-                    ExpenseId = expenseId,
+                    CollectionId = collectionId,
                     StudentId = student.Id,
-                    AmountExpense = individualAmount,
+                    AmountCollection = individualAmount,
                     AmountPaid = 0,
                     PaymentStatus = PaymentStatus.Pending,
                     Pending = individualAmount
@@ -297,30 +297,30 @@ namespace Application.Services
             await _paymentRepository.CreateManyAsync(payments);
             
             // Actualizar el avance del gasto
-            expense.Advance.Total = students.Count();
-            expense.Advance.Completed = 0;
-            expense.Advance.Pending = students.Count();
-            await _expenseRepository.UpdateAsync(expense);
+            collection.Advance.Total = students.Count();
+            collection.Advance.Completed = 0;
+            collection.Advance.Pending = students.Count();
+            await _collectionRepository.UpdateAsync(collection);
             
             return await EnrichPaymentsWithDetails(payments);
         }
 
-        public async Task UpdatePaymentsForExpenseAsync(string expenseId, decimal newIndividualAmount)
+        public async Task UpdatePaymentsForCollectionAsync(string collectionId, decimal newIndividualAmount)
         {
             // Verificar que el gasto existe
-            var expense = await _expenseRepository.GetByIdAsync(expenseId);
-            if (expense == null)
+            var collection = await _collectionRepository.GetByIdAsync(collectionId);
+            if (collection == null)
             {
-                throw new KeyNotFoundException($"Gasto con ID {expenseId} no encontrado");
+                throw new KeyNotFoundException($"Gasto con ID {collectionId} no encontrado");
             }
 
             // Obtener todos los pagos para este gasto
-            var payments = await _paymentRepository.GetByExpenseIdAsync(expenseId);
+            var payments = await _paymentRepository.GetByCollectionIdAsync(collectionId);
             
             // Actualizar el monto individual para cada pago
             foreach (var payment in payments)
             {
-                payment.AmountExpense = newIndividualAmount;
+                payment.AmountCollection = newIndividualAmount;
                 payment.Pending = newIndividualAmount - payment.AmountPaid;
                 
                 // Actualizar el estado del pago
@@ -354,7 +354,7 @@ namespace Application.Services
             await _paymentRepository.UpdateManyAsync(payments);
             
             // Actualizar el avance del gasto
-            await UpdateExpenseAdvance(expenseId);
+            await UpdateCollectionAdvance(collectionId);
         }
 
         public async Task<StudentPaymentDto> RegisterPaymentWithImagesAsync(RegisterPaymentWithImagesDto dto)
@@ -367,7 +367,7 @@ namespace Application.Services
             }
 
             // Obtener el gasto para verificar si tiene un monto ajustado
-            var expense = await _expenseRepository.GetByIdAsync(payment.ExpenseId);
+            var collection = await _collectionRepository.GetByIdAsync(payment.CollectionId);
 
             // Guardar las imágenes en la carpeta específica del pago
             var imagePaths = await _fileService.SaveImagesAsync(dto.Images, $"payments/{dto.Id}");
@@ -383,16 +383,16 @@ namespace Application.Services
             payment.Images.AddRange(imagePaths);
             
             // Actualizar el monto ajustado desde el gasto si existe
-            if (expense?.AdjustedIndividualAmount.HasValue == true)
+            if (collection?.AdjustedIndividualAmount.HasValue == true)
             {
-                payment.AdjustedAmountExpense = expense.AdjustedIndividualAmount.Value;
-                payment.Surplus = expense.TotalSurplus;
+                payment.AdjustedAmountCollection = collection.AdjustedIndividualAmount.Value;
+                payment.Surplus = collection.TotalSurplus;
             }
             
             // Determinar qué monto usar para las comparaciones (ajustado o original)
-            decimal amountToCompare = payment.AdjustedAmountExpense > 0 
-                ? payment.AdjustedAmountExpense 
-                : payment.AmountExpense;
+            decimal amountToCompare = payment.AdjustedAmountCollection > 0 
+                ? payment.AdjustedAmountCollection 
+                : payment.AmountCollection;
             
             // Calcular el estado del pago basado en el monto apropiado
             if (payment.AmountPaid >= amountToCompare)
@@ -420,7 +420,7 @@ namespace Application.Services
             await _paymentRepository.UpdateAsync(payment);
 
             // Actualizar el avance del gasto
-            await UpdateExpenseAdvance(payment.ExpenseId);
+            await UpdateCollectionAdvance(payment.CollectionId);
 
             // Si es un pago nuevo (antes era 0), registrar un egreso en caja chica
             if (previousAmountPaid == 0 && payment.AmountPaid > 0)
@@ -432,7 +432,7 @@ namespace Application.Services
                 await _pettyCashService.RegisterIncomeFromExcedentAsync(
                     payment.Id,
                     payment.AmountPaid,
-                    $"Registro de pago para {expense?.Name} - Estudiante: {studentName}"
+                    $"Registro de pago para {collection?.Name} - Estudiante: {studentName}"
                 );
             }
 
@@ -446,7 +446,7 @@ namespace Application.Services
             //     await _pettyCashService.RegisterIncomeFromExcedentAsync(
             //         payment.Id,
             //         payment.Excedent,
-            //         $"Excedente de pago para {expense?.Name} - Estudiante: {studentName}"
+            //         $"Excedente de pago para {collection?.Name} - Estudiante: {studentName}"
             //     );
             // }
             
@@ -469,12 +469,12 @@ namespace Application.Services
         private async Task<StudentPaymentDto> EnrichPaymentWithDetails(StudentPayment payment)
         {
             var student = await _studentRepository.GetByIdAsync(payment.StudentId);
-            var expense = await _expenseRepository.GetByIdAsync(payment.ExpenseId);
+            var collection = await _collectionRepository.GetByIdAsync(payment.CollectionId);
 
             // Determinar el monto que se debe mostrar
-            decimal amountToShow = payment.AdjustedAmountExpense > 0 
-                ? payment.AdjustedAmountExpense 
-                : payment.AmountExpense;
+            decimal amountToShow = payment.AdjustedAmountCollection > 0 
+                ? payment.AdjustedAmountCollection 
+                : payment.AmountCollection;
 
             var imageUrls = new List<string>();
             foreach (var imagePath in payment.Images)
@@ -488,12 +488,12 @@ namespace Application.Services
             return new StudentPaymentDto
             {
                 Id = payment.Id,
-                ExpenseId = payment.ExpenseId,
+                CollectionId = payment.CollectionId,
                 StudentId = payment.StudentId,
                 StudentName = student?.Name,
-                ExpenseName = expense?.Name,
-                AmountExpense = payment.AmountExpense,
-                AdjustedAmountExpense = payment.AdjustedAmountExpense,
+                CollectionName = collection?.Name,
+                AmountCollection = payment.AmountCollection,
+                AdjustedAmountCollection = payment.AdjustedAmountCollection,
                 AmountPaid = payment.AmountPaid,
                 PaymentStatus = payment.PaymentStatus,
                 Images = imageUrls,
@@ -508,36 +508,36 @@ namespace Application.Services
             };
         }
 
-        private async Task UpdateExpenseAdvance(string expenseId)
+        private async Task UpdateCollectionAdvance(string collectionId)
         {
-            var expense = await _expenseRepository.GetByIdAsync(expenseId);
-            if (expense == null) return;
+            var collection = await _collectionRepository.GetByIdAsync(collectionId);
+            if (collection == null) return;
 
-            var payments = await _paymentRepository.GetByExpenseIdAsync(expenseId);
+            var payments = await _paymentRepository.GetByCollectionIdAsync(collectionId);
             
             // Actualizar el avance
-            expense.Advance.Total = payments.Count();
-            expense.Advance.Completed = payments.Count(p => p.PaymentStatus == PaymentStatus.Paid);
-            expense.Advance.Pending = expense.Advance.Total - expense.Advance.Completed;
+            collection.Advance.Total = payments.Count();
+            collection.Advance.Completed = payments.Count(p => p.PaymentStatus == PaymentStatus.Paid);
+            collection.Advance.Pending = collection.Advance.Total - collection.Advance.Completed;
             
             // Calcular el porcentaje pagado basado en el monto ajustado si existe
             var totalPaid = payments.Sum(p => p.AmountPaid);
             decimal totalAmount;
             
-            if (expense.AdjustedIndividualAmount.HasValue && expense.AdjustedIndividualAmount.Value > 0)
+            if (collection.AdjustedIndividualAmount.HasValue && collection.AdjustedIndividualAmount.Value > 0)
             {
                 // Usar el monto ajustado
-                totalAmount = expense.AdjustedIndividualAmount.Value * expense.Advance.Total;
+                totalAmount = collection.AdjustedIndividualAmount.Value * collection.Advance.Total;
             }
             else
             {
                 // Usar el monto original
-                totalAmount = expense.IndividualAmount * expense.Advance.Total;
+                totalAmount = collection.IndividualAmount * collection.Advance.Total;
             }
             
-            expense.PercentagePaid = totalAmount > 0 ? (totalPaid / totalAmount) * 100 : 0;
+            collection.PercentagePaid = totalAmount > 0 ? (totalPaid / totalAmount) * 100 : 0;
             
-            await _expenseRepository.UpdateAsync(expense);
+            await _collectionRepository.UpdateAsync(collection);
         }
     }
 } 

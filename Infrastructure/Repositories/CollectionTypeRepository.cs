@@ -4,27 +4,27 @@ using MongoDB.Driver;
 
 namespace Infrastructure.Repositories
 {
-    public class ExpenseTypeRepository : IExpenseTypeRepository
+    public class CollectionTypeRepository : ICollectionTypeRepository
     {
-        private readonly IMongoCollection<ExpenseType> _expensiveTypes;
+        private readonly IMongoCollection<CollectionType> _expensiveTypes;
 
-        public ExpenseTypeRepository(IMongoDatabase database)
+        public CollectionTypeRepository(IMongoDatabase database)
         {
-            _expensiveTypes = database.GetCollection<ExpenseType>("ExpenseTypes");
+            _expensiveTypes = database.GetCollection<CollectionType>("CollectionTypes");
         }
 
-        public async Task<List<ExpenseType>> GetAllAsync() =>
+        public async Task<List<CollectionType>> GetAllAsync() =>
             await _expensiveTypes.Find(_ => true).ToListAsync();
 
-        public async Task<ExpenseType> GetByIdAsync(string id) =>
+        public async Task<CollectionType> GetByIdAsync(string id) =>
             await _expensiveTypes.Find(c => c.Id == id).FirstOrDefaultAsync();
 
-        public async Task InsertAsync(ExpenseType expensiveType) =>
+        public async Task InsertAsync(CollectionType expensiveType) =>
             await _expensiveTypes.InsertOneAsync(expensiveType);
 
-        public async Task UpdateAsync(ExpenseType expensiveType)
+        public async Task UpdateAsync(CollectionType expensiveType)
         {
-            var filter = Builders<ExpenseType>.Filter.Eq(c => c.Id, expensiveType.Id);
+            var filter = Builders<CollectionType>.Filter.Eq(c => c.Id, expensiveType.Id);
             
             // Utilizamos ReplaceOneAsync para reemplazar todo el documento
             // Esto evita tener que especificar cada campo a actualizar
@@ -37,7 +37,7 @@ namespace Infrastructure.Repositories
             return result.DeletedCount > 0;
         }
 
-        public async Task<(List<ExpenseType> Items, int TotalCount)> GetPaginatedAsync(int page, int pageSize)
+        public async Task<(List<CollectionType> Items, int TotalCount)> GetPaginatedAsync(int page, int pageSize)
         {
             var totalCount = await _expensiveTypes.CountDocumentsAsync(_ => true);
             

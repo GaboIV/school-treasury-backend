@@ -3,12 +3,12 @@ using MongoDB.Bson;
 
 namespace Application.DTOs
 {
-    public class CreateExpenseDto
+    public class CreateCollectionDto
     {
         public string? Name { get; set; }
 
         [Required]
-        public string? ExpenseTypeId { get; set; }
+        public string? CollectionTypeId { get; set; }
 
         [Required]
         public DateTime Date { get; set; }

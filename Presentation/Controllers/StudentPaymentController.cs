@@ -46,10 +46,10 @@ namespace Presentation.Controllers
             return Ok(new ApiResponse<IEnumerable<StudentPaymentDto>>(payments, "Pagos del estudiante obtenidos exitosamente"));
         }
 
-        [HttpGet("expense/{expenseId}")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<StudentPaymentDto>>>> GetPaymentsByExpenseId(string expenseId)
+        [HttpGet("collection/{collectionId}")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<StudentPaymentDto>>>> GetPaymentsByCollectionId(string collectionId)
         {
-            var payments = await _paymentService.GetPaymentsByExpenseIdAsync(expenseId);
+            var payments = await _paymentService.GetPaymentsByCollectionIdAsync(collectionId);
             return Ok(new ApiResponse<IEnumerable<StudentPaymentDto>>(payments, "Pagos del gasto obtenidos exitosamente"));
         }
 

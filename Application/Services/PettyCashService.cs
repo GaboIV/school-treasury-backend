@@ -2,11 +2,6 @@ using Application.DTOs;
 using Application.Interfaces;
 using AutoMapper;
 using Domain.Entities;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Application.Services
 {
@@ -16,7 +11,7 @@ namespace Application.Services
         private readonly ITransactionRepository _transactionRepository;
         private readonly IStudentPaymentRepository _studentPaymentRepository;
         private readonly IStudentRepository _studentRepository;
-        private readonly IExpenseRepository _expenseRepository;
+        private readonly ICollectionRepository _collectionRepository;
         private readonly IMapper _mapper;
         private readonly ILogger<PettyCashService> _logger;
 
@@ -25,7 +20,7 @@ namespace Application.Services
             ITransactionRepository transactionRepository,
             IStudentPaymentRepository studentPaymentRepository,
             IStudentRepository studentRepository,
-            IExpenseRepository expenseRepository,
+            ICollectionRepository collectionRepository,
             IMapper mapper,
             ILogger<PettyCashService> logger)
         {
@@ -33,7 +28,7 @@ namespace Application.Services
             _transactionRepository = transactionRepository;
             _studentPaymentRepository = studentPaymentRepository;
             _studentRepository = studentRepository;
-            _expenseRepository = expenseRepository;
+            _collectionRepository = collectionRepository;
             _mapper = mapper;
             _logger = logger;
         }
@@ -94,8 +89,8 @@ namespace Application.Services
                 // Si no es un pago, intentar obtener un gasto
                 if (payment == null)
                 {
-                    var expenseEntity = await _expenseRepository.GetByIdAsync(entityId);
-                    if (expenseEntity == null)
+                    var collectionEntity = await _collectionRepository.GetByIdAsync(entityId);
+                    if (collectionEntity == null)
                     {
                         throw new KeyNotFoundException($"No se encontró ninguna entidad con el ID {entityId}");
                     }
@@ -103,8 +98,8 @@ namespace Application.Services
                     // Es un gasto
                     return await RegisterExpenseFromPaymentAsync(
                         entityId,
-                        expenseEntity.TotalAmount,
-                        $"Gasto: {expenseEntity.Name}"
+                        collectionEntity.TotalAmount,
+                        $"Gasto: {collectionEntity.Name}"
                     );
                 }
                 
@@ -112,13 +107,13 @@ namespace Application.Services
                 var student = await _studentRepository.GetByIdAsync(payment.StudentId);
                 
                 // Obtener información del gasto
-                var expense = await _expenseRepository.GetByIdAsync(payment.ExpenseId);
+                var collection = await _collectionRepository.GetByIdAsync(payment.CollectionId);
                 
                 // Es un pago
                 return await RegisterExpenseFromPaymentAsync(
                     entityId,
                     payment.AmountPaid,
-                    $"Pago de estudiante: {student?.Name ?? "Desconocido"} - Gasto: {expense?.Name ?? "Desconocido"}"
+                    $"Pago de estudiante: {student?.Name ?? "Desconocido"} - Gasto: {collection?.Name ?? "Desconocido"}"
                 );
             }
             catch (Exception ex)
@@ -135,8 +130,8 @@ namespace Application.Services
                 // Obtener información adicional si es un pago
                 string? studentId = null;
                 string? studentName = null;
-                string? expenseId = null;
-                string? expenseName = null;
+                string? collectionId = null;
+                string? collectionName = null;
                 string? paymentId = null;
                 string? paymentStatus = null;
                 
@@ -152,28 +147,28 @@ namespace Application.Services
                     studentName = student?.Name;
                     
                     // Obtener información del gasto
-                    expenseId = payment.ExpenseId;
-                    var expense = await _expenseRepository.GetByIdAsync(payment.ExpenseId);
-                    expenseName = expense?.Name;
+                    collectionId = payment.CollectionId;
+                    var collection = await _collectionRepository.GetByIdAsync(payment.CollectionId);
+                    collectionName = collection?.Name;
                 }
                 
                 var transaction = new Transaction
                 {
-                    Type = TransactionType.Expense,
+                    Type = TransactionType.Collection,
                     Amount = amount,
                     Description = description,
                     RelatedEntityId = entityId,
-                    RelatedEntityType = payment != null ? "Payment" : "Expense",
+                    RelatedEntityType = payment != null ? "Payment" : "Collection",
                     StudentId = studentId,
                     StudentName = studentName,
-                    ExpenseId = expenseId,
-                    ExpenseName = expenseName,
+                    CollectionId = collectionId,
+                    CollectionName = collectionName,
                     PaymentId = paymentId,
                     PaymentStatus = paymentStatus
                 };
 
                 // Actualizar el balance en la caja chica
-                await _pettyCashRepository.UpdateBalanceAsync(amount, TransactionType.Expense);
+                await _pettyCashRepository.UpdateBalanceAsync(amount, TransactionType.Collection);
                 
                 // Guardar la transacción en la colección separada
                 var addedTransaction = await _transactionRepository.CreateAsync(transaction);
@@ -202,7 +197,7 @@ namespace Application.Services
                 var student = await _studentRepository.GetByIdAsync(payment.StudentId);
                 
                 // Obtener información del gasto
-                var expense = await _expenseRepository.GetByIdAsync(payment.ExpenseId);
+                var collection = await _collectionRepository.GetByIdAsync(payment.CollectionId);
                 
                 var transaction = new Transaction
                 {
@@ -213,8 +208,8 @@ namespace Application.Services
                     RelatedEntityType = "Payment",
                     StudentId = payment.StudentId,
                     StudentName = student?.Name,
-                    ExpenseId = payment.ExpenseId,
-                    ExpenseName = expense?.Name,
+                    CollectionId = payment.CollectionId,
+                    CollectionName = collection?.Name,
                     PaymentId = payment.Id,
                     PaymentStatus = payment.PaymentStatus.ToString()
                 };

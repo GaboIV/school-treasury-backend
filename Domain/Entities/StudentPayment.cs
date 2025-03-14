@@ -6,17 +6,17 @@ namespace Domain.Entities
 {
     public class StudentPayment : BaseEntity
     {
-        [BsonElement("expenseId")]
-        public string ExpenseId { get; set; } = string.Empty;
+        [BsonElement("collectionId")]
+        public string CollectionId { get; set; } = string.Empty;
         
         [BsonElement("studentId")]
         public string StudentId { get; set; } = string.Empty;
         
-        [BsonElement("amountExpense")]
-        public decimal AmountExpense { get; set; }
+        [BsonElement("amountCollection")]
+        public decimal AmountCollection { get; set; }
         
-        [BsonElement("adjustedAmountExpense")]
-        public decimal AdjustedAmountExpense { get; set; }
+        [BsonElement("adjustedAmountCollection")]
+        public decimal AdjustedAmountCollection { get; set; }
         
         [BsonElement("amountPaid")]
         public decimal AmountPaid { get; set; } = 0;

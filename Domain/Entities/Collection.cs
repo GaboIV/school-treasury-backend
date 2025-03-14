@@ -2,15 +2,15 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace Domain.Entities {
-    public class Expense : BaseEntity
+    public class Collection : BaseEntity
     {
-        [BsonElement("expenseTypeId")]
+        [BsonElement("collectionTypeId")]
         [BsonRepresentation(BsonType.ObjectId)]
-        public required string ExpenseTypeId { get; set; }
+        public required string CollectionTypeId { get; set; }
 
-        [BsonElement("expenseType")]
+        [BsonElement("collectionType")]
         [BsonIgnoreIfNull]
-        public ExpenseType? ExpenseType { get; set; }
+        public CollectionType? CollectionType { get; set; }
 
         [BsonElement("name")]
         public string? Name { get; set; }

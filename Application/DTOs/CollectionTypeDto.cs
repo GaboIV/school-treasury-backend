@@ -1,6 +1,6 @@
 namespace Application.DTOs
 {
-    public class ExpenseTypeDto : BaseDto
+    public class CollectionTypeDto : BaseDto
     {
         public string? Name { get; set; }
     }

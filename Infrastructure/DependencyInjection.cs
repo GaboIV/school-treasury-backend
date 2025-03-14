@@ -23,8 +23,8 @@ namespace Infrastructure
                 return client.GetDatabase(databaseName);
             });
 
-            services.AddScoped<IExpenseRepository, ExpenseRepository>();
-            services.AddScoped<IExpenseTypeRepository, ExpenseTypeRepository>();
+            services.AddScoped<ICollectionRepository, CollectionRepository>();
+            services.AddScoped<ICollectionTypeRepository, CollectionTypeRepository>();
             services.AddScoped<IStudentRepository, StudentRepository>();
             services.AddScoped<IStudentPaymentRepository, StudentPaymentRepository>();
 

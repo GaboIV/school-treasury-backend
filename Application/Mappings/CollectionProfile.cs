@@ -4,11 +4,11 @@ using Domain.Entities;
 
 namespace Application.Mapping
 {
-    public class ExpenseProfile : Profile
+    public class CollectionProfile : Profile
     {
-        public ExpenseProfile()
+        public CollectionProfile()
         {
-            CreateMap<Expense, ExpenseDto>();
+            CreateMap<Collection, CollectionDto>();
             CreateMap<Advance, TotalPaidDto>();
             CreateMap<Image, ImageDto>();
         }

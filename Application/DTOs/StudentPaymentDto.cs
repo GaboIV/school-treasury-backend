@@ -7,12 +7,12 @@ namespace Application.DTOs
     public class StudentPaymentDto
     {
         public string? Id { get; set; }
-        public string ExpenseId { get; set; } = string.Empty;
+        public string CollectionId { get; set; } = string.Empty;
         public string StudentId { get; set; } = string.Empty;
         public string? StudentName { get; set; }
-        public string? ExpenseName { get; set; }
-        public decimal AmountExpense { get; set; }
-        public decimal AdjustedAmountExpense { get; set; }
+        public string? CollectionName { get; set; }
+        public decimal AmountCollection { get; set; }
+        public decimal AdjustedAmountCollection { get; set; }
         public decimal AmountPaid { get; set; }
         public PaymentStatus PaymentStatus { get; set; }
         public List<string> Images { get; set; } = new List<string>();
@@ -28,7 +28,7 @@ namespace Application.DTOs
     
     public class CreateStudentPaymentDto
     {
-        public string ExpenseId { get; set; } = string.Empty;
+        public string CollectionId { get; set; } = string.Empty;
         public string StudentId { get; set; } = string.Empty;
         public decimal AmountPaid { get; set; } = 0;
         public List<string> Images { get; set; } = new List<string>();

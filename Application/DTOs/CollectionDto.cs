@@ -4,10 +4,10 @@ using System.Collections.Generic;
 
 namespace Application.DTOs
 {
-    public class ExpenseDto : BaseDto
+    public class CollectionDto : BaseDto
     {
-        public string? ExpenseTypeId { get; set; }
-        public ExpenseTypeDto? ExpenseType { get; set; }
+        public string? CollectionTypeId { get; set; }
+        public CollectionTypeDto? CollectionType { get; set; }
         public string? Name { get; set; }
         public decimal TotalAmount { get; set; }
         public decimal IndividualAmount { get; set; }

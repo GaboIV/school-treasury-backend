@@ -1,6 +1,6 @@
 namespace Application.DTOs
 {
-    public class AdjustExpenseAmountDto
+    public class AdjustCollectionAmountDto
     {
         public string Id { get; set; } = string.Empty;
         public decimal AdjustedAmount { get; set; }

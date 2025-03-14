@@ -31,11 +31,11 @@ namespace Domain.Entities
         public string? StudentName { get; set; }
         
         // Información adicional del pago
-        [BsonElement("expenseId")]
-        public string? ExpenseId { get; set; }
+        [BsonElement("collectionId")]
+        public string? CollectionId { get; set; }
         
-        [BsonElement("expenseName")]
-        public string? ExpenseName { get; set; }
+        [BsonElement("collectionName")]
+        public string? CollectionName { get; set; }
         
         [BsonElement("paymentId")]
         public string? PaymentId { get; set; }
@@ -54,6 +54,6 @@ namespace Domain.Entities
     public enum TransactionType
     {
         Income,
-        Expense
+        Collection
     }
 } 

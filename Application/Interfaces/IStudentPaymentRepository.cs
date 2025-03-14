@@ -9,7 +9,7 @@ namespace Application.Interfaces
         Task<IEnumerable<StudentPayment>> GetAllAsync();
         Task<StudentPayment?> GetByIdAsync(string id);
         Task<IEnumerable<StudentPayment>> GetByStudentIdAsync(string studentId);
-        Task<IEnumerable<StudentPayment>> GetByExpenseIdAsync(string expenseId);
+        Task<IEnumerable<StudentPayment>> GetByCollectionIdAsync(string collectionId);
         Task<IEnumerable<StudentPayment>> GetPendingPaymentsByStudentIdAsync(string studentId);
         Task<StudentPayment> CreateAsync(StudentPayment payment);
         Task UpdateAsync(StudentPayment payment);
@@ -17,7 +17,7 @@ namespace Application.Interfaces
         Task<IEnumerable<StudentPayment>> CreateManyAsync(IEnumerable<StudentPayment> payments);
         Task UpdateManyAsync(IEnumerable<StudentPayment> payments);
         Task InsertAsync(StudentPayment payment);
-        Task CreatePaymentsForExpenseAsync(string expenseId, decimal individualAmount);
-        Task UpdatePaymentsForExpenseAsync(string expenseId, decimal newIndividualAmount);
+        Task CreatePaymentsForCollectionAsync(string collectionId, decimal individualAmount);
+        Task UpdatePaymentsForCollectionAsync(string collectionId, decimal newIndividualAmount);
     }
 } 
