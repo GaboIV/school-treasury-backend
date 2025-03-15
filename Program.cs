@@ -2,9 +2,16 @@ using Application;
 using Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using Serilog;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, loggerConfiguration) => loggerConfiguration
+    .ReadFrom.Configuration(context.Configuration));
 
 Console.WriteLine($"MongoDB ConnectionString: {builder.Configuration["MongoDB:ConnectionString"]}");
 
@@ -48,6 +55,21 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services
+    .AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("SchoolTreasure"))
+    .WithTracing(tracing => {
+        tracing
+            .AddHttpClientInstrumentation()
+            .AddAspNetCoreInstrumentation();
+
+        tracing.AddOtlpExporter(options => {
+            options.Endpoint = new Uri("http://localhost:5341/ingest/otlp/v1/traces");
+            options.Protocol = OtlpExportProtocol.HttpProtobuf;
+        });
+    });
+
+
 var app = builder.Build();
 
 // Ejecutar seeders
@@ -82,5 +104,8 @@ app.UseCors("AllowAll");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseSerilogRequestLogging();
+
 app.MapControllers();
 app.Run("http://192.168.18.137:5200");

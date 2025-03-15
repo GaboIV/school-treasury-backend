@@ -1,4 +1,5 @@
 using Application.Interfaces;
+using Infrastructure.Logging;
 using Infrastructure.Persistence.Seeders;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
@@ -22,6 +23,9 @@ namespace Infrastructure
                 var client = sp.GetRequiredService<IMongoClient>();
                 return client.GetDatabase(databaseName);
             });
+
+            // Registrar el LoggerManager
+            services.AddSingleton<ILoggerManager, LoggerManager>();
 
             services.AddScoped<ICollectionRepository, CollectionRepository>();
             services.AddScoped<ICollectionTypeRepository, CollectionTypeRepository>();
