@@ -31,6 +31,7 @@ namespace Infrastructure
             services.AddScoped<ICollectionTypeRepository, CollectionTypeRepository>();
             services.AddScoped<IStudentRepository, StudentRepository>();
             services.AddScoped<IStudentPaymentRepository, StudentPaymentRepository>();
+            services.AddScoped<IExpenseRepository, ExpenseRepository>();
 
             // Registrar seeders
             services.AddScoped<ISeeder, StudentSeeder>();
