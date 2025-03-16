@@ -40,6 +40,13 @@ namespace Application
             services.AddScoped<ITransactionLogService, TransactionLogService>();
             services.AddScoped<ITransactionRepository, TransactionRepository>();
 
+            // Dashboard
+            services.AddScoped<IDashboardService, DashboardService>();
+
+            // InterestLink
+            services.AddScoped<IInterestLinkService, InterestLinkService>();
+            services.AddScoped<IInterestLinkRepository, InterestLinkRepository>();
+
             return services;
         }
     }

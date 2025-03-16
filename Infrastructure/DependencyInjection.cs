@@ -27,11 +27,16 @@ namespace Infrastructure
             // Registrar el LoggerManager
             services.AddSingleton<ILoggerManager, LoggerManager>();
 
+            // Registrar repositorios
             services.AddScoped<ICollectionRepository, CollectionRepository>();
             services.AddScoped<ICollectionTypeRepository, CollectionTypeRepository>();
             services.AddScoped<IStudentRepository, StudentRepository>();
             services.AddScoped<IStudentPaymentRepository, StudentPaymentRepository>();
             services.AddScoped<IExpenseRepository, ExpenseRepository>();
+            services.AddScoped<IPettyCashRepository, PettyCashRepository>();
+            services.AddScoped<ITransactionLogRepository, TransactionLogRepository>();
+            services.AddScoped<ITransactionRepository, TransactionRepository>();
+            services.AddScoped<IInterestLinkRepository, InterestLinkRepository>();
 
             // Registrar seeders
             services.AddScoped<ISeeder, StudentSeeder>();
@@ -39,8 +44,6 @@ namespace Infrastructure
 
             // Registrar servicios
             services.AddScoped<IFileService, FileService>();
-            services.AddScoped<IPettyCashRepository, PettyCashRepository>();
-            services.AddScoped<ITransactionLogRepository, TransactionLogRepository>();
 
             return services;
         }
