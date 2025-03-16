@@ -6,5 +6,8 @@ namespace Domain.Entities
     {
         [BsonElement("name")]
         public string Name { get; set; } = string.Empty;
+
+        [BsonElement("avatar")]
+        public string Avatar { get; set; } = "001-boy.svg";
     }
 } 

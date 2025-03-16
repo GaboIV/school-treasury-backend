@@ -1,4 +1,5 @@
 using Application.Interfaces;
+using Application.Services;
 using Infrastructure.Logging;
 using Infrastructure.Persistence.Seeders;
 using Infrastructure.Repositories;
@@ -44,6 +45,15 @@ namespace Infrastructure
 
             // Registrar servicios
             services.AddScoped<IFileService, FileService>();
+            services.AddScoped<IStudentService, StudentService>();
+            services.AddScoped<ICollectionService, CollectionService>();
+            services.AddScoped<ICollectionTypeService, CollectionTypeService>();
+            services.AddScoped<IStudentPaymentService, StudentPaymentService>();
+            services.AddScoped<IExpenseService, ExpenseService>();
+            services.AddScoped<IPettyCashService, PettyCashService>();
+            services.AddScoped<ITransactionLogService, TransactionLogService>();
+            services.AddScoped<IDashboardService, DashboardService>();
+            services.AddScoped<IInterestLinkService, InterestLinkService>();
 
             return services;
         }

@@ -18,7 +18,19 @@ namespace Infrastructure.Repositories
 
         public async Task<IEnumerable<Student>> GetAllAsync()
         {
-            return await _studentCollection.Find(student => student.Status == true).ToListAsync();
+            var collation = new Collation("en", strength: CollationStrength.Primary);
+            var options = new AggregateOptions()
+            {
+                Collation = collation
+            };
+
+            var students = await _studentCollection
+                .Aggregate(options)
+                .Match(Builders<Student>.Filter.Eq(s => s.Status, true))
+                .Sort(Builders<Student>.Sort.Ascending(s => s.Name))
+                .ToListAsync();
+
+            return students;
         }
 
         public async Task<Student> GetByIdAsync(string id)
