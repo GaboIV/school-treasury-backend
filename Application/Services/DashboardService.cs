@@ -68,8 +68,11 @@ namespace Application.Services
                 completionPercentage = Math.Round(((decimal)(totalPayments - pendingPaymentsCount) / totalPayments) * 100, 2);
             }
 
-            // Calcular el monto total pendiente
-            decimal totalPendingAmount = pendingPayments.Sum(p => p.Pending);
+            // Calcular el monto total pendiente considerando montos ajustados
+            decimal totalPendingAmount = pendingPayments.Sum(p => 
+                p.AdjustedAmountCollection > 0 ? 
+                p.AdjustedAmountCollection - (p.AmountPaid > 0 ? p.AmountPaid : 0) : 
+                p.Pending);
 
             // Obtener los 3 pagos pendientes principales
             var topPendingPayments = new List<PendingPaymentDetailDto>();
@@ -85,8 +88,13 @@ namespace Application.Services
                 var studentDict = allStudents.ToDictionary(s => s.Id, s => s);
                 var collectionDict = allCollections.ToDictionary(c => c.Id, c => c);
 
-                // Ordenar por monto pendiente (de mayor a menor)
-                var orderedPendingPayments = pendingPayments.OrderByDescending(p => p.Pending).ToList();
+                // Ordenar por monto pendiente (de mayor a menor) considerando montos ajustados
+                var orderedPendingPayments = pendingPayments
+                    .OrderByDescending(p => 
+                        p.AdjustedAmountCollection > 0 ? 
+                        p.AdjustedAmountCollection - (p.AmountPaid > 0 ? p.AmountPaid : 0) : 
+                        p.Pending)
+                    .ToList();
                 
                 // Tomar los 3 primeros para el detalle
                 var topPayments = orderedPendingPayments.Take(3).ToList();
@@ -96,19 +104,24 @@ namespace Application.Services
                     studentDict.TryGetValue(payment.StudentId, out var student);
                     collectionDict.TryGetValue(payment.CollectionId, out var collection);
                     
+                    // Calcular el monto pendiente considerando el monto ajustado
+                    decimal pendingAmount = payment.AdjustedAmountCollection > 0 ?
+                        payment.AdjustedAmountCollection - (payment.AmountPaid > 0 ? payment.AmountPaid : 0) :
+                        payment.Pending;
+                    
                     topPendingPayments.Add(new PendingPaymentDetailDto
                     {
                         Id = payment.Id,
                         StudentId = payment.StudentId,
                         StudentName = student?.Name ?? "Estudiante desconocido",
                         CollectionName = collection?.Name ?? "Cobro desconocido",
-                        PendingAmount = payment.Pending,
+                        PendingAmount = pendingAmount,
                         PaymentStatus = payment.PaymentStatus
                     });
                 }
                 
                 // Calcular cuántos pagos pendientes quedan después de los 3 principales
-                remainingPendingPayments = pendingPaymentsCount - topPayments.Count;
+                remainingPendingPayments = pendingPaymentsCount - topPayments.Count();
             }
 
             return new PendingPaymentsDto
@@ -195,8 +208,13 @@ namespace Application.Services
                 
                 foreach (var collection in topCollections)
                 {
-                    // Calcular el monto pendiente
-                    decimal pendingAmount = collection.TotalAmount * (1 - (collection.PercentagePaid / 100));
+                    // Calcular el monto pendiente considerando el monto ajustado
+                    decimal individualAmount = collection.AdjustedIndividualAmount.HasValue && collection.AdjustedIndividualAmount.Value > 0 
+                        ? collection.AdjustedIndividualAmount.Value 
+                        : collection.IndividualAmount;
+                    
+                    decimal totalAmount = individualAmount * collection.Advance.Total;
+                    decimal pendingAmount = totalAmount * (1 - (collection.PercentagePaid / 100));
                     
                     // Obtener el nombre del tipo de colección
                     string collectionTypeName = "Tipo desconocido";
@@ -210,7 +228,7 @@ namespace Application.Services
                         Id = collection.Id,
                         Name = collection.Name ?? "Cobro sin nombre",
                         CollectionTypeName = collectionTypeName,
-                        TotalAmount = collection.TotalAmount,
+                        TotalAmount = totalAmount,
                         PendingAmount = pendingAmount,
                         TotalStudents = collection.Advance.Total,
                         PendingStudents = collection.Advance.Pending,
