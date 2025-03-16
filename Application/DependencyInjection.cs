@@ -12,6 +12,9 @@ namespace Application
             services.AddScoped<ICollectionService, CollectionService>();
             services.AddScoped<ICollectionTypeService, CollectionTypeService>();
             services.AddScoped<IStudentPaymentService, StudentPaymentService>();
+            
+            // Registrar ExpenseService después de PettyCashService para asegurar la dependencia
+            services.AddScoped<IPettyCashService, PettyCashService>();
             services.AddScoped<IExpenseService, ExpenseService>();
 
             // Identificar mappings automáticamente

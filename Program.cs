@@ -7,6 +7,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
 using System.Text;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,11 @@ builder.Host.UseSerilog((context, loggerConfiguration) => loggerConfiguration
     .ReadFrom.Configuration(context.Configuration));
 
 Console.WriteLine($"MongoDB ConnectionString: {builder.Configuration["MongoDB:ConnectionString"]}");
+
+// Configuración de cultura peruana para toda la aplicación
+var peruvianCulture = new CultureInfo("es-PE");
+CultureInfo.DefaultThreadCurrentCulture = peruvianCulture;
+CultureInfo.DefaultThreadCurrentUICulture = peruvianCulture;
 
 // Configuración de CORS
 builder.Services.AddCors(options =>

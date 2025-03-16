@@ -55,7 +55,12 @@ namespace Infrastructure.Repositories
                 pettyCash.TotalIncome += amount;
                 pettyCash.CurrentBalance += amount;
             }
-            else
+            else if (type == TransactionType.Expense)
+            {
+                pettyCash.TotalExpense += amount;
+                pettyCash.CurrentBalance -= amount;
+            }
+            else // TransactionType.Collection
             {
                 pettyCash.TotalExpense += amount;
                 pettyCash.CurrentBalance -= amount;

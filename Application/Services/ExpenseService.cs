@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Globalization;
 
 namespace Application.Services
 {
@@ -19,6 +20,7 @@ namespace Application.Services
         private readonly ILoggerManager _logger;
         private readonly IMapper _mapper;
         private readonly IFileService _fileService;
+        private readonly IPettyCashService _pettyCashService;
 
         /// <summary>
         /// Constructor
@@ -27,16 +29,19 @@ namespace Application.Services
         /// <param name="logger">Servicio de logging</param>
         /// <param name="mapper">Servicio de mapeo</param>
         /// <param name="fileService">Servicio de archivos</param>
+        /// <param name="pettyCashService">Servicio de caja chica</param>
         public ExpenseService(
             IExpenseRepository expenseRepository,
             ILoggerManager logger,
             IMapper mapper,
-            IFileService fileService)
+            IFileService fileService,
+            IPettyCashService pettyCashService)
         {
             _expenseRepository = expenseRepository;
             _logger = logger;
             _mapper = mapper;
             _fileService = fileService;
+            _pettyCashService = pettyCashService;
         }
 
         /// <summary>
@@ -87,6 +92,9 @@ namespace Application.Services
             var result = await _expenseRepository.CreateAsync(expense);
             _logger.LogInfo($"Servicio: Gasto creado con ID: {result.Id}");
             
+            // Registrar el gasto en la caja chica
+            await RegisterExpenseInPettyCash(result);
+            
             return result;
         }
 
@@ -107,6 +115,9 @@ namespace Application.Services
                 return null;
             }
             
+            // Guardar el monto anterior para calcular la diferencia
+            decimal previousAmount = existingExpense.Amount;
+            
             // Mapear propiedades actualizadas
             _mapper.Map(dto, existingExpense);
             
@@ -125,6 +136,12 @@ namespace Application.Services
             
             var result = await _expenseRepository.UpdateAsync(existingExpense);
             _logger.LogInfo($"Servicio: Gasto actualizado con ID: {result.Id}");
+            
+            // Registrar la actualización en la caja chica si el monto cambió
+            if (previousAmount != result.Amount)
+            {
+                await RegisterExpenseUpdateInPettyCash(result, previousAmount);
+            }
             
             return result;
         }
@@ -154,6 +171,9 @@ namespace Application.Services
                 _logger.LogInfo($"Servicio: Se eliminaron {imagePaths.Count} imágenes asociadas al gasto");
             }
             
+            // Registrar la eliminación en la caja chica antes de eliminar el gasto
+            await RegisterExpenseDeletionInPettyCash(expense);
+            
             var result = await _expenseRepository.DeleteAsync(id);
             
             if (result)
@@ -178,6 +198,129 @@ namespace Application.Services
         {
             _logger.LogInfo($"Servicio: Obteniendo gastos paginados. Página: {page}, Tamaño: {pageSize}");
             return await _expenseRepository.GetPaginatedAsync(page, pageSize);
+        }
+        
+        /// <summary>
+        /// Registra un gasto en la caja chica
+        /// </summary>
+        /// <param name="expense">Gasto a registrar</param>
+        private async Task RegisterExpenseInPettyCash(Expense expense)
+        {
+            try
+            {
+                _logger.LogInfo($"Servicio: Registrando gasto con ID: {expense.Id} en caja chica");
+                
+                var transactionDto = new CreateTransactionDto
+                {
+                    Type = TransactionType.Expense, // Tipo egreso
+                    Amount = expense.Amount,
+                    Description = $"Gasto: {expense.Name} - {expense.Description}",
+                    RelatedEntityId = expense.Id,
+                    RelatedEntityType = "Expense",
+                    ExpenseId = expense.Id,
+                    ExpenseName = expense.Name
+                };
+                
+                await _pettyCashService.AddTransactionAsync(transactionDto);
+                
+                _logger.LogInfo($"Servicio: Gasto con ID: {expense.Id} registrado en caja chica");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Servicio: Error al registrar gasto en caja chica: {ex.Message}");
+                // No lanzamos la excepción para no interrumpir el flujo principal
+            }
+        }
+        
+        /// <summary>
+        /// Registra la actualización de un gasto en la caja chica
+        /// </summary>
+        /// <param name="expense">Gasto actualizado</param>
+        /// <param name="previousAmount">Monto anterior del gasto</param>
+        private async Task RegisterExpenseUpdateInPettyCash(Expense expense, decimal previousAmount)
+        {
+            try
+            {
+                _logger.LogInfo($"Servicio: Registrando actualización de gasto con ID: {expense.Id} en caja chica");
+                
+                decimal difference = expense.Amount - previousAmount;
+                
+                if (difference == 0)
+                {
+                    return; // No hay cambio en el monto, no es necesario registrar
+                }
+                
+                string description;
+                TransactionType type;
+                decimal amount;
+                
+                if (difference > 0)
+                {
+                    // El nuevo monto es mayor, registrar un egreso adicional
+                    type = TransactionType.Expense;
+                    amount = difference;
+                    description = $"Incremento en gasto: {expense.Name} - Diferencia: S/ {difference:N2}";
+                }
+                else
+                {
+                    // El nuevo monto es menor, registrar un ingreso por la diferencia
+                    type = TransactionType.Income;
+                    amount = Math.Abs(difference);
+                    description = $"Reducción en gasto: {expense.Name} - Diferencia: S/ {amount:N2}";
+                }
+                
+                var transactionDto = new CreateTransactionDto
+                {
+                    Type = type,
+                    Amount = amount,
+                    Description = description,
+                    RelatedEntityId = expense.Id,
+                    RelatedEntityType = "Expense",
+                    ExpenseId = expense.Id,
+                    ExpenseName = expense.Name
+                };
+                
+                await _pettyCashService.AddTransactionAsync(transactionDto);
+                
+                _logger.LogInfo($"Servicio: Actualización de gasto con ID: {expense.Id} registrada en caja chica");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Servicio: Error al registrar actualización de gasto en caja chica: {ex.Message}");
+                // No lanzamos la excepción para no interrumpir el flujo principal
+            }
+        }
+        
+        /// <summary>
+        /// Registra la eliminación de un gasto en la caja chica
+        /// </summary>
+        /// <param name="expense">Gasto eliminado</param>
+        private async Task RegisterExpenseDeletionInPettyCash(Expense expense)
+        {
+            try
+            {
+                _logger.LogInfo($"Servicio: Registrando eliminación de gasto con ID: {expense.Id} en caja chica");
+                
+                var transactionDto = new CreateTransactionDto
+                {
+                    Type = TransactionType.Income, // Tipo ingreso (devuelve el dinero)
+                    Amount = expense.Amount,
+                    Description = $"Eliminación de gasto: {expense.Name} - Devolución: S/ {expense.Amount:N2}",
+                    RelatedEntityId = expense.Id,
+                    RelatedEntityType = "Expense",
+                    ExpenseId = expense.Id,
+                    ExpenseName = expense.Name
+                };
+                
+                await _pettyCashService.AddTransactionAsync(transactionDto);
+                
+                _logger.LogInfo($"Servicio: Eliminación de gasto con ID: {expense.Id} registrada en caja chica");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Servicio: Error al registrar eliminación de gasto en caja chica: {ex.Message}");
+                // No lanzamos la excepción para no interrumpir el flujo principal
+            }
         }
     }
 } 

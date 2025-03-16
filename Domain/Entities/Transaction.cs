@@ -53,7 +53,8 @@ namespace Domain.Entities
 
     public enum TransactionType
     {
-        Income,
-        Collection
+        Income,    // Ingreso
+        Expense,   // Gasto
+        Collection // Cobro
     }
 } 
