@@ -154,7 +154,7 @@ namespace Application.Services
                 
                 var transaction = new Transaction
                 {
-                    Type = TransactionType.Collection,
+                    Type = TransactionType.Expense,
                     Amount = amount,
                     Description = description,
                     RelatedEntityId = entityId,
@@ -168,7 +168,7 @@ namespace Application.Services
                 };
 
                 // Actualizar el balance en la caja chica
-                await _pettyCashRepository.UpdateBalanceAsync(amount, TransactionType.Collection);
+                await _pettyCashRepository.UpdateBalanceAsync(amount, TransactionType.Expense);
                 
                 // Guardar la transacción en la colección separada
                 var addedTransaction = await _transactionRepository.CreateAsync(transaction);

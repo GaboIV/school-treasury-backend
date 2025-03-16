@@ -1,10 +1,8 @@
 using Application.DTOs;
 using Application.Interfaces;
 using Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using OpenTelemetry.Trace;
+using System.Diagnostics;
 
 namespace Application.Services
 {
@@ -15,36 +13,68 @@ namespace Application.Services
         private readonly ICollectionRepository _collectionRepository;
         private readonly IFileService _fileService;
         private readonly IPettyCashService _pettyCashService;
+        private readonly Tracer _tracer;
+        private readonly ILogger<StudentPaymentService> _logger;
+        private static readonly ActivitySource _activitySource = new("SchoolTreasure.PaymentService");
 
         public StudentPaymentService(
             IStudentPaymentRepository paymentRepository,
             IStudentRepository studentRepository,
             ICollectionRepository collectionRepository,
             IFileService fileService,
-            IPettyCashService pettyCashService)
+            IPettyCashService pettyCashService,
+            ILogger<StudentPaymentService> logger)
         {
             _paymentRepository = paymentRepository;
             _studentRepository = studentRepository;
             _collectionRepository = collectionRepository;
             _fileService = fileService;
             _pettyCashService = pettyCashService;
+            _logger = logger;
         }
 
         public async Task<IEnumerable<StudentPaymentDto>> GetAllPaymentsAsync()
         {
-            var payments = await _paymentRepository.GetAllAsync();
-            return await EnrichPaymentsWithDetails(payments);
+            using var activity = _activitySource.StartActivity("GetAllPayments");
+            _logger.LogInformation("Obteniendo todos los pagos");
+            
+            try
+            {
+                var payments = await _paymentRepository.GetAllAsync();
+                _logger.LogInformation("Se encontraron {Count} pagos", payments.Count());
+                return await EnrichPaymentsWithDetails(payments);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener todos los pagos");
+                throw;
+            }
         }
 
         public async Task<StudentPaymentDto> GetPaymentByIdAsync(string id)
         {
-            var payment = await _paymentRepository.GetByIdAsync(id);
-            if (payment == null)
+            using var activity = _activitySource.StartActivity("GetPaymentById");
+            activity?.SetTag("payment.id", id);
+            
+            _logger.LogInformation("Buscando pago con ID: {PaymentId}", id);
+            
+            try
             {
-                throw new KeyNotFoundException($"Pago con ID {id} no encontrado");
-            }
+                var payment = await _paymentRepository.GetByIdAsync(id);
+                if (payment == null)
+                {
+                    _logger.LogWarning("Pago no encontrado con ID: {PaymentId}", id);
+                    throw new KeyNotFoundException($"Pago con ID {id} no encontrado");
+                }
 
-            return await EnrichPaymentWithDetails(payment);
+                _logger.LogInformation("Pago encontrado con ID: {PaymentId}", id);
+                return await EnrichPaymentWithDetails(payment);
+            }
+            catch (Exception ex) when (ex is not KeyNotFoundException)
+            {
+                _logger.LogError(ex, "Error al obtener pago con ID: {PaymentId}", id);
+                throw;
+            }
         }
 
         public async Task<IEnumerable<StudentPaymentDto>> GetPaymentsByStudentIdAsync(string studentId)
@@ -67,90 +97,109 @@ namespace Application.Services
 
         public async Task<StudentPaymentDto> CreatePaymentAsync(CreateStudentPaymentDto dto)
         {
-            // Verificar que el estudiante existe
-            var student = await _studentRepository.GetByIdAsync(dto.StudentId);
-            if (student == null)
-            {
-                throw new KeyNotFoundException($"Estudiante con ID {dto.StudentId} no encontrado");
-            }
-
-            // Verificar que el gasto existe
-            var collection = await _collectionRepository.GetByIdAsync(dto.CollectionId);
-            if (collection == null)
-            {
-                throw new KeyNotFoundException($"Gasto con ID {dto.CollectionId} no encontrado");
-            }
-
-            // Verificar si ya existe un pago para este estudiante y gasto
-            var existingPayments = await _paymentRepository.GetByCollectionIdAsync(dto.CollectionId);
-            var existingPayment = existingPayments.FirstOrDefault(p => p.StudentId == dto.StudentId);
-
-            if (existingPayment != null)
-            {
-                // Actualizar el pago existente
-                existingPayment.AmountPaid += dto.AmountPaid;
-                
-                if (dto.Images != null && dto.Images.Count > 0)
-                {
-                    existingPayment.Images.AddRange(dto.Images);
-                }
-                
-                if (!string.IsNullOrEmpty(dto.Voucher))
-                {
-                    existingPayment.Voucher = dto.Voucher;
-                }
-                
-                if (!string.IsNullOrEmpty(dto.Comment))
-                {
-                    existingPayment.Comment = dto.Comment;
-                }
-
-                await _paymentRepository.UpdateAsync(existingPayment);
-                return await EnrichPaymentWithDetails(existingPayment);
-            }
-
-            // Crear un nuevo pago
-            var payment = new StudentPayment
-            {
-                CollectionId = dto.CollectionId,
-                StudentId = dto.StudentId,
-                AmountCollection = collection.IndividualAmount,
-                AmountPaid = dto.AmountPaid,
-                Images = dto.Images,
-                Voucher = dto.Voucher,
-                Comment = dto.Comment,
-                Pending = collection.IndividualAmount - dto.AmountPaid
-            };
-
-            var individualAmount = (collection.AdjustedIndividualAmount != null ? collection.AdjustedIndividualAmount : collection.IndividualAmount) ?? 0;
-
-            // Establecer el estado del pago
-            if (dto.AmountPaid >= individualAmount)
-            {
-                if (dto.AmountPaid > individualAmount)
-                {
-                    payment.Excedent = dto.AmountPaid - individualAmount;
-                    payment.PaymentStatus = PaymentStatus.Excedent;
-                }
-                else
-                {
-                    payment.PaymentStatus = PaymentStatus.Paid;
-                }
-                
-                payment.Pending = 0;
-                payment.PaymentDate = DateTime.UtcNow;
-            }
-            else if (dto.AmountPaid > 0)
-            {
-                payment.PaymentStatus = PaymentStatus.PartiallyPaid;
-            }
-
-            await _paymentRepository.CreateAsync(payment);
+            using var activity = _activitySource.StartActivity("CreatePayment");
+            activity?.SetTag("student.id", dto.StudentId);
+            activity?.SetTag("collection.id", dto.CollectionId);
             
-            // Actualizar el avance del gasto
-            await UpdateCollectionAdvance(collection.Id);
-            
-            return await EnrichPaymentWithDetails(payment);
+            _logger.LogInformation("Iniciando creación de pago para estudiante {StudentId} en colección {CollectionId}", 
+                dto.StudentId, dto.CollectionId);
+
+            try
+            {
+                // Verificar que el estudiante existe
+                var student = await _studentRepository.GetByIdAsync(dto.StudentId);
+                if (student == null)
+                {
+                    _logger.LogWarning("Estudiante no encontrado con ID: {StudentId}", dto.StudentId);
+                    throw new KeyNotFoundException($"Estudiante con ID {dto.StudentId} no encontrado");
+                }
+
+                // Verificar que el gasto existe
+                var collection = await _collectionRepository.GetByIdAsync(dto.CollectionId);
+                if (collection == null)
+                {
+                    _logger.LogWarning("Gasto no encontrado con ID: {CollectionId}", dto.CollectionId);
+                    throw new KeyNotFoundException($"Gasto con ID {dto.CollectionId} no encontrado");
+                }
+
+                _logger.LogDebug("Verificando pagos existentes para estudiante {StudentId} en colección {CollectionId}",
+                    dto.StudentId, dto.CollectionId);
+
+                // Verificar si ya existe un pago
+                var existingPayments = await _paymentRepository.GetByCollectionIdAsync(dto.CollectionId);
+                var existingPayment = existingPayments.FirstOrDefault(p => p.StudentId == dto.StudentId);
+
+                if (existingPayment != null)
+                {
+                    _logger.LogInformation("Actualizando pago existente para estudiante {StudentId}", dto.StudentId);
+                    
+                    decimal previousAmount = existingPayment.AmountPaid;
+                    existingPayment.AmountPaid += dto.AmountPaid;
+                    
+                    _logger.LogDebug("Monto anterior: {PreviousAmount}, Nuevo monto: {NewAmount}", 
+                        previousAmount, existingPayment.AmountPaid);
+
+                    if (dto.Images != null && dto.Images.Count > 0)
+                    {
+                        _logger.LogDebug("Agregando {Count} imágenes al pago", dto.Images.Count);
+                        existingPayment.Images.AddRange(dto.Images);
+                    }
+                    
+                    await _paymentRepository.UpdateAsync(existingPayment);
+                    return await EnrichPaymentWithDetails(existingPayment);
+                }
+
+                _logger.LogInformation("Creando nuevo pago para estudiante {StudentId}", dto.StudentId);
+
+                // Crear un nuevo pago
+                var payment = new StudentPayment
+                {
+                    CollectionId = dto.CollectionId,
+                    StudentId = dto.StudentId,
+                    AmountCollection = collection.IndividualAmount,
+                    AmountPaid = dto.AmountPaid,
+                    Images = dto.Images,
+                    Voucher = dto.Voucher,
+                    Comment = dto.Comment,
+                    Pending = collection.IndividualAmount - dto.AmountPaid
+                };
+
+                var individualAmount = (collection.AdjustedIndividualAmount != null ? collection.AdjustedIndividualAmount : collection.IndividualAmount) ?? 0;
+
+                // Establecer el estado del pago
+                if (dto.AmountPaid >= individualAmount)
+                {
+                    if (dto.AmountPaid > individualAmount)
+                    {
+                        payment.Excedent = dto.AmountPaid - individualAmount;
+                        payment.PaymentStatus = PaymentStatus.Excedent;
+                    }
+                    else
+                    {
+                        payment.PaymentStatus = PaymentStatus.Paid;
+                    }
+                    
+                    payment.Pending = 0;
+                    payment.PaymentDate = DateTime.UtcNow;
+                }
+                else if (dto.AmountPaid > 0)
+                {
+                    payment.PaymentStatus = PaymentStatus.PartiallyPaid;
+                }
+
+                await _paymentRepository.CreateAsync(payment);
+                
+                // Actualizar el avance del gasto
+                await UpdateCollectionAdvance(collection.Id);
+                
+                return await EnrichPaymentWithDetails(payment);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear pago para estudiante {StudentId} en colección {CollectionId}", 
+                    dto.StudentId, dto.CollectionId);
+                throw;
+            }
         }
 
         public async Task<StudentPaymentDto> UpdatePaymentAsync(string id, UpdateStudentPaymentDto dto)
@@ -359,48 +408,57 @@ namespace Application.Services
 
         public async Task<StudentPaymentDto> RegisterPaymentWithImagesAsync(RegisterPaymentWithImagesDto dto)
         {
+            using var activity = _activitySource.StartActivity("RegisterPaymentWithImages");
+            var stopwatch = Stopwatch.StartNew();  // ⏱ Inicia medición de tiempo
+            
+            _logger.LogInformation("Service: Iniciando registro de pago con imágenes para PaymentId: {PaymentId}", dto.Id);
+            
             // Verificar que el pago existe
             var payment = await _paymentRepository.GetByIdAsync(dto.Id);
             if (payment == null)
             {
+                _logger.LogWarning("Service: Pago con ID {PaymentId} no encontrado", dto.Id);
                 throw new KeyNotFoundException($"Pago con ID {dto.Id} no encontrado");
             }
-
+            
+            _logger.LogInformation("Service: Pago encontrado con ID {PaymentId}", payment.Id);
+            
             // Obtener el gasto para verificar si tiene un monto ajustado
             var collection = await _collectionRepository.GetByIdAsync(payment.CollectionId);
-
+            _logger.LogInformation("Service: Cobro obtenida con ID {CollectionId}", payment.CollectionId);
+            
             // Guardar las imágenes en la carpeta específica del pago
             var imagePaths = await _fileService.SaveImagesAsync(dto.Images, $"payments/{dto.Id}");
-
+            _logger.LogInformation("Service: {ImageCount} imágenes guardadas para PaymentId: {PaymentId}", imagePaths.Count, dto.Id);
+            
             // Guardar monto anterior para comparar
             decimal previousAmountPaid = payment.AmountPaid;
+            _logger.LogInformation("Service: Monto previo del pago: {PreviousAmountPaid}", previousAmountPaid);
 
-            // Actualizar el pago
+            // Actualizar el pago con el nuevo monto
             payment.AmountPaid = dto.AmountPaid;
             payment.Comment = dto.Comment;
-            
-            // Añadir las nuevas imágenes a la lista existente
             payment.Images.AddRange(imagePaths);
-            
-            // Actualizar el monto ajustado desde el gasto si existe
-            if (collection?.AdjustedIndividualAmount.HasValue == true)
-            {
-                payment.AdjustedAmountCollection = collection.AdjustedIndividualAmount.Value;
-                payment.Surplus = collection.TotalSurplus;
-            }
-            
-            // Determinar qué monto usar para las comparaciones (ajustado o original)
-            decimal amountToCompare = payment.AdjustedAmountCollection > 0 
-                ? payment.AdjustedAmountCollection 
-                : payment.AmountCollection;
-            
-            // Calcular el estado del pago basado en el monto apropiado
+            _logger.LogInformation("Service: Monto actualizado a {AmountPaid} para PaymentId: {PaymentId}", dto.AmountPaid, dto.Id);
+
+            // Comparación de montos antes de definir el estado
+            _logger.LogInformation("Service: Comparando montos - Anterior: {PreviousAmountPaid}, Nuevo: {AmountPaid}", previousAmountPaid, dto.AmountPaid);
+
+            // Determinar el monto de comparación
+            decimal amountToCompare = payment.AdjustedAmountCollection > 0 ? payment.AdjustedAmountCollection : payment.AmountCollection;
+            _logger.LogInformation("Service: Monto de comparación determinado: {AmountToCompare}", amountToCompare);
+
+            // Comparación del monto pagado con el monto de referencia
+            _logger.LogInformation("Service: Monto a comparar: {AmountToCompare}, Monto pagado: {AmountPaid}", amountToCompare, payment.AmountPaid);
+
+            // Evaluar el estado del pago
             if (payment.AmountPaid >= amountToCompare)
             {
                 payment.PaymentStatus = PaymentStatus.Paid;
                 payment.Excedent = payment.AmountPaid - amountToCompare;
                 payment.Pending = 0;
                 payment.PaymentDate = DateTime.UtcNow;
+                _logger.LogInformation("Service: Pago completado. Excedente: {Excedent}, Estado: {PaymentStatus}", payment.Excedent, payment.PaymentStatus);
             }
             else if (payment.AmountPaid > 0)
             {
@@ -408,26 +466,31 @@ namespace Application.Services
                 payment.Excedent = 0;
                 payment.Pending = amountToCompare - payment.AmountPaid;
                 payment.PaymentDate = DateTime.UtcNow;
+                _logger.LogInformation("Service: Pago parcial. Pendiente: {Pending}, Estado: {PaymentStatus}", payment.Pending, payment.PaymentStatus);
             }
             else
             {
                 payment.PaymentStatus = PaymentStatus.Pending;
                 payment.Excedent = 0;
                 payment.Pending = amountToCompare;
+                _logger.LogInformation("Service: Pago pendiente. Pendiente: {Pending}, Estado: {PaymentStatus}", payment.Pending, payment.PaymentStatus);
             }
-
+            
             // Guardar los cambios
             await _paymentRepository.UpdateAsync(payment);
-
+            _logger.LogInformation("Service: Pago actualizado en la base de datos para PaymentId: {PaymentId}", payment.Id);
+            
             // Actualizar el avance del gasto
             await UpdateCollectionAdvance(payment.CollectionId);
-
+            _logger.LogInformation("Service: Avance de colección actualizado para CollectionId: {CollectionId}", payment.CollectionId);
+            
             // Si es un pago nuevo (antes era 0), registrar un egreso en caja chica
             if (previousAmountPaid == 0 && payment.AmountPaid > 0)
             {
-                // Obtener el nombre del estudiante
                 var student = await _studentRepository.GetByIdAsync(payment.StudentId);
                 string studentName = student?.Name ?? "Desconocido";
+                
+                _logger.LogInformation("Service: Registrando ingreso en caja chica para PaymentId: {PaymentId}", payment.Id);
                 
                 await _pettyCashService.RegisterIncomeFromExcedentAsync(
                     payment.Id,
@@ -435,23 +498,11 @@ namespace Application.Services
                     $"Registro de pago para {collection?.Name} - Estudiante: {studentName}"
                 );
             }
-
-            // Si hay excedente, registrar un ingreso en caja chica
-            // if (payment.Excedent > 0)
-            // {
-            //     // Obtener el nombre del estudiante si no se ha obtenido ya
-            //     var student = payment.StudentName != null ? null : await _studentRepository.GetByIdAsync(payment.StudentId);
-            //     string studentName = payment.StudentName ?? student?.Name ?? "Desconocido";
-            //     
-            //     await _pettyCashService.RegisterIncomeFromExcedentAsync(
-            //         payment.Id,
-            //         payment.Excedent,
-            //         $"Excedente de pago para {collection?.Name} - Estudiante: {studentName}"
-            //     );
-            // }
             
             // Retornar el DTO enriquecido
-            return await EnrichPaymentWithDetails(payment);
+            var enrichedPayment = await EnrichPaymentWithDetails(payment);
+            _logger.LogInformation("Service: Pago registrado exitosamente para PaymentId: {PaymentId}", payment.Id);
+            return enrichedPayment;
         }
 
         private async Task<IEnumerable<StudentPaymentDto>> EnrichPaymentsWithDetails(IEnumerable<StudentPayment> payments)
@@ -510,34 +561,54 @@ namespace Application.Services
 
         private async Task UpdateCollectionAdvance(string collectionId)
         {
-            var collection = await _collectionRepository.GetByIdAsync(collectionId);
-            if (collection == null) return;
+            using var activity = _activitySource.StartActivity("UpdateCollectionAdvance");
+            activity?.SetTag("collection.id", collectionId);
+            
+            _logger.LogInformation("Actualizando avance de colección {CollectionId}", collectionId);
 
-            var payments = await _paymentRepository.GetByCollectionIdAsync(collectionId);
-            
-            // Actualizar el avance
-            collection.Advance.Total = payments.Count();
-            collection.Advance.Completed = payments.Count(p => p.PaymentStatus == PaymentStatus.Paid);
-            collection.Advance.Pending = collection.Advance.Total - collection.Advance.Completed;
-            
-            // Calcular el porcentaje pagado basado en el monto ajustado si existe
-            var totalPaid = payments.Sum(p => p.AmountPaid);
-            decimal totalAmount;
-            
-            if (collection.AdjustedIndividualAmount.HasValue && collection.AdjustedIndividualAmount.Value > 0)
+            try
             {
-                // Usar el monto ajustado
-                totalAmount = collection.AdjustedIndividualAmount.Value * collection.Advance.Total;
+                var collection = await _collectionRepository.GetByIdAsync(collectionId);
+                if (collection == null)
+                {
+                    _logger.LogWarning("Colección no encontrada con ID: {CollectionId}", collectionId);
+                    return;
+                }
+
+                var payments = await _paymentRepository.GetByCollectionIdAsync(collectionId);
+                
+                var previousAdvance = new
+                {
+                    Total = collection.Advance.Total,
+                    Completed = collection.Advance.Completed,
+                    Pending = collection.Advance.Pending
+                };
+
+                collection.Advance.Total = payments.Count();
+                collection.Advance.Completed = payments.Count(p => p.PaymentStatus == PaymentStatus.Paid);
+                collection.Advance.Pending = collection.Advance.Total - collection.Advance.Completed;
+
+                var totalPaid = payments.Sum(p => p.AmountPaid);
+                decimal totalAmount = collection.AdjustedIndividualAmount.HasValue 
+                    ? collection.AdjustedIndividualAmount.Value * collection.Advance.Total
+                    : collection.IndividualAmount * collection.Advance.Total;
+
+                collection.PercentagePaid = totalAmount > 0 ? (totalPaid / totalAmount) * 100 : 0;
+
+                _logger.LogInformation(
+                    "Avance actualizado para colección {CollectionId}. Anterior: {PreviousAdvance}, Nuevo: {NewAdvance}",
+                    collectionId,
+                    previousAdvance,
+                    new { collection.Advance.Total, collection.Advance.Completed, collection.Advance.Pending }
+                );
+
+                await _collectionRepository.UpdateAsync(collection);
             }
-            else
+            catch (Exception ex)
             {
-                // Usar el monto original
-                totalAmount = collection.IndividualAmount * collection.Advance.Total;
+                _logger.LogError(ex, "Error al actualizar avance de colección {CollectionId}", collectionId);
+                throw;
             }
-            
-            collection.PercentagePaid = totalAmount > 0 ? (totalPaid / totalAmount) * 100 : 0;
-            
-            await _collectionRepository.UpdateAsync(collection);
         }
     }
 } 

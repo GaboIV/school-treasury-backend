@@ -12,6 +12,10 @@ namespace Application
             services.AddScoped<ICollectionService, CollectionService>();
             services.AddScoped<ICollectionTypeService, CollectionTypeService>();
             services.AddScoped<IStudentPaymentService, StudentPaymentService>();
+            
+            // Registrar ExpenseService después de PettyCashService para asegurar la dependencia
+            services.AddScoped<IPettyCashService, PettyCashService>();
+            services.AddScoped<IExpenseService, ExpenseService>();
 
             // Identificar mappings automáticamente
             services.AddAutoMapper(typeof(DependencyInjection).Assembly);
@@ -35,6 +39,13 @@ namespace Application
             services.AddScoped<IPettyCashService, PettyCashService>();
             services.AddScoped<ITransactionLogService, TransactionLogService>();
             services.AddScoped<ITransactionRepository, TransactionRepository>();
+
+            // Dashboard
+            services.AddScoped<IDashboardService, DashboardService>();
+
+            // InterestLink
+            services.AddScoped<IInterestLinkService, InterestLinkService>();
+            services.AddScoped<IInterestLinkRepository, InterestLinkRepository>();
 
             return services;
         }

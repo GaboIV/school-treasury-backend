@@ -92,9 +92,31 @@ namespace Infrastructure.Services
             if (string.IsNullOrEmpty(imagePath))
                 return string.Empty;
 
-            // Asegurarse de que la ruta comienza con /
-            if (!imagePath.StartsWith("/"))
+            // Si ya es una URL completa, devolverla tal cual
+            if (imagePath.StartsWith("http://") || imagePath.StartsWith("https://"))
+                return imagePath;
+                
+            // Si es solo el nombre del archivo, añadir la ruta /uploads/expenses/
+            if (!imagePath.Contains("/") && !imagePath.StartsWith("/uploads/"))
+            {
+                // Determinar la carpeta basada en alguna convención o patrón en el nombre
+                string folder = "expenses"; // Por defecto
+                
+                // Asegurarse de que la ruta comienza con /
+                imagePath = $"/uploads/{folder}/{imagePath}";
+            }
+            // Si ya tiene /uploads/ pero no comienza con /, añadir /
+            else if (imagePath.Contains("/uploads/") && !imagePath.StartsWith("/"))
+            {
                 imagePath = $"/{imagePath}";
+            }
+            // Si no tiene /uploads/ pero comienza con /, podría ser solo el nombre del archivo
+            else if (!imagePath.Contains("/uploads/") && imagePath.StartsWith("/"))
+            {
+                // Extraer solo el nombre del archivo si hay una ruta
+                string fileName = Path.GetFileName(imagePath);
+                imagePath = $"/uploads/expenses/{fileName}";
+            }
 
             return $"{_baseUrl}{imagePath}";
         }
