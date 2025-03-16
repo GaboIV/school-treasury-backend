@@ -6,13 +6,7 @@ using System.ComponentModel.DataAnnotations;
 /// DTO para crear un nuevo gasto
 /// </summary>
 public class CreateExpenseDto
-{
-    /// <summary>
-    /// ID del tipo de gasto
-    /// </summary>
-    [Required(ErrorMessage = "El tipo de gasto es obligatorio")]
-    public string ExpenseTypeId { get; set; }
-    
+{    
     /// <summary>
     /// Nombre del gasto
     /// </summary>

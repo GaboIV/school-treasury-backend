@@ -1,15 +1,13 @@
+using MongoDB.Bson.Serialization.Attributes;
+
 namespace Domain.Entities;
 
 /// <summary>
 /// Representa un gasto en el sistema
 /// </summary>
+[BsonIgnoreExtraElements] 
 public class Expense : BaseEntity
-{
-    /// <summary>
-    /// ID del tipo de gasto
-    /// </summary>
-    public string ExpenseTypeId { get; set; }
-    
+{    
     /// <summary>
     /// Nombre del gasto
     /// </summary>
@@ -19,11 +17,6 @@ public class Expense : BaseEntity
     /// Monto original del gasto
     /// </summary>
     public decimal Amount { get; set; }
-    
-    /// <summary>
-    /// Monto ajustado del gasto (si aplica)
-    /// </summary>
-    public decimal? AdjustedAmount { get; set; }
     
     /// <summary>
     /// Fecha en que se realizó el gasto

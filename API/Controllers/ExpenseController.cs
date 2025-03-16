@@ -2,8 +2,6 @@ using Application.DTOs;
 using Application.Interfaces;
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
-using System.IO;
-using Microsoft.AspNetCore.Http;
 
 namespace Presentation.Controllers;
 
@@ -108,7 +106,6 @@ public class ExpenseController : ControllerBase
         [FromForm] DateTime date, 
         [FromForm] string description, 
         [FromForm] bool status, 
-        [FromForm] string expenseTypeId,
         [FromForm] IFormFile[] images)
     {
         _logger.LogInfo("Controlador: POST api/v1/expenses - Creando nuevo gasto");
@@ -122,8 +119,7 @@ public class ExpenseController : ControllerBase
                 Amount = amount,
                 Date = date,
                 Description = description,
-                Status = status,
-                ExpenseTypeId = expenseTypeId
+                Status = status
             };
             
             // Guardar las imágenes y obtener sus IDs
@@ -171,7 +167,6 @@ public class ExpenseController : ControllerBase
         [FromForm] DateTime date, 
         [FromForm] string description, 
         [FromForm] bool status, 
-        [FromForm] string expenseTypeId,
         [FromForm] List<string> existingImageIds,
         [FromForm] IFormFile[] images)
     {
@@ -187,8 +182,7 @@ public class ExpenseController : ControllerBase
                 Amount = amount,
                 Date = date,
                 Description = description,
-                Status = status,
-                ExpenseTypeId = expenseTypeId
+                Status = status
             };
             
             // Validar el ID
@@ -353,51 +347,6 @@ public class ExpenseController : ControllerBase
         {
             _logger.LogError(ex, "Controlador: Error al obtener gastos paginados");
             return StatusCode(500, new ExpenseResponse { Success = false, Status = "Error", Message = "Error interno del servidor" });
-        }
-    }
-
-    /// <summary>
-    /// Ajusta el monto de un gasto
-    /// </summary>
-    /// <param name="id">ID del gasto</param>
-    /// <param name="dto">DTO con el monto ajustado</param>
-    /// <returns>Gasto actualizado</returns>
-    [HttpPatch("{id}/adjust-amount")]
-    [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> AdjustExpenseAmount(string id, [FromBody] AdjustExpenseAmountDto dto)
-    {
-        _logger.LogInfo($"Controlador: PATCH api/v1/expenses/{id}/adjust-amount - Ajustando monto de gasto");
-        
-        if (!ModelState.IsValid)
-        {
-            _logger.LogWarn("Controlador: Modelo inválido al ajustar monto de gasto");
-            return BadRequest(new ExpenseResponse { Success = false, Status = "Bad Request", Message = "Datos inválidos", Data = ModelState });
-        }
-        
-        try
-        {
-            dto.Id = id; // Asegurar que el ID en el DTO coincida con el de la URL
-            _logger.LogDebug($"Controlador: Ajustando monto de gasto con ID: {id}, Nuevo monto: {dto.AdjustedAmount}");
-            
-            var expense = await _expenseService.AdjustExpenseAmountAsync(id, dto);
-            var expenseDto = _mapper.Map<ExpenseDto>(expense);
-            var response = new ExpenseResponse(expenseDto, "Monto ajustado correctamente");
-            
-            _logger.LogInfo($"Controlador: Monto de gasto ajustado correctamente con ID: {id}");
-            return Ok(response);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            _logger.LogWarn($"Controlador: No se encontró el gasto con ID: {id} para ajustar monto: {ex.Message}");
-            return NotFound(new ExpenseResponse { Success = false, Status = "Not Found", Message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"Controlador: Error al ajustar monto de gasto con ID: {id}");
-            return StatusCode(500, new ExpenseResponse { Success = false, Status = "Error", Message = $"Error al ajustar el monto: {ex.Message}" });
         }
     }
 }

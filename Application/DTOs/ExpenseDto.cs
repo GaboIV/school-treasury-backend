@@ -16,11 +16,6 @@ public class ExpenseDto : BaseDto
     public decimal Amount { get; set; }
     
     /// <summary>
-    /// Monto ajustado del gasto (si aplica)
-    /// </summary>
-    public decimal? AdjustedAmount { get; set; }
-    
-    /// <summary>
     /// Fecha en que se realizó el gasto
     /// </summary>
     public DateTime Date { get; set; }

@@ -14,12 +14,6 @@ public class UpdateExpenseDto
     public string Id { get; set; }
     
     /// <summary>
-    /// ID del tipo de gasto
-    /// </summary>
-    [Required(ErrorMessage = "El tipo de gasto es obligatorio")]
-    public string ExpenseTypeId { get; set; }
-    
-    /// <summary>
     /// Nombre del gasto
     /// </summary>
     [StringLength(200, ErrorMessage = "El nombre no puede exceder los 200 caracteres")]

@@ -49,12 +49,4 @@ public interface IExpenseService
     /// <param name="pageSize">Tamaño de página</param>
     /// <returns>Tupla con la lista de gastos y el total de registros</returns>
     Task<(IEnumerable<Expense> expenses, int totalCount)> GetPaginatedExpensesAsync(int page, int pageSize);
-    
-    /// <summary>
-    /// Ajusta el monto de un gasto
-    /// </summary>
-    /// <param name="id">ID del gasto</param>
-    /// <param name="dto">DTO con el monto ajustado</param>
-    /// <returns>Gasto actualizado</returns>
-    Task<Expense> AdjustExpenseAmountAsync(string id, AdjustExpenseAmountDto dto);
 } 

@@ -179,32 +179,5 @@ namespace Application.Services
             _logger.LogInfo($"Servicio: Obteniendo gastos paginados. Página: {page}, Tamaño: {pageSize}");
             return await _expenseRepository.GetPaginatedAsync(page, pageSize);
         }
-
-        /// <summary>
-        /// Ajusta el monto de un gasto
-        /// </summary>
-        /// <param name="id">ID del gasto</param>
-        /// <param name="dto">DTO con el monto ajustado</param>
-        /// <returns>Gasto actualizado</returns>
-        public async Task<Expense> AdjustExpenseAmountAsync(string id, AdjustExpenseAmountDto dto)
-        {
-            _logger.LogInfo($"Servicio: Ajustando monto del gasto con ID: {id}");
-            
-            var expense = await _expenseRepository.GetByIdAsync(id);
-            
-            if (expense == null)
-            {
-                _logger.LogWarn($"Servicio: No se encontró el gasto con ID: {id} para ajustar monto");
-                throw new KeyNotFoundException($"No se encontró el gasto con ID: {id}");
-            }
-            
-            expense.AdjustedAmount = dto.AdjustedAmount;
-            expense.UpdatedAt = DateTime.UtcNow;
-            
-            var result = await _expenseRepository.UpdateAsync(expense);
-            _logger.LogInfo($"Servicio: Monto del gasto ajustado con ID: {id}, Nuevo monto: {dto.AdjustedAmount}");
-            
-            return result;
-        }
     }
 } 
