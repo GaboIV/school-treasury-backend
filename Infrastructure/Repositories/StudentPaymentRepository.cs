@@ -64,35 +64,6 @@ namespace Infrastructure.Repositories
             payment.UpdatedAt = DateTime.UtcNow;
             payment.Pending = payment.AmountCollection - payment.AmountPaid;
             
-            // Actualizar el estado del pago basado en los montos
-            if (payment.AmountPaid >= payment.AmountCollection)
-            {
-                if (payment.AmountPaid > payment.AmountCollection)
-                {
-                    payment.Excedent = payment.AmountPaid - payment.AmountCollection;
-                    payment.PaymentStatus = PaymentStatus.Excedent;
-                }
-                else
-                {
-                    payment.PaymentStatus = PaymentStatus.Paid;
-                }
-                
-                payment.Pending = 0;
-                
-                if (payment.PaymentDate == null)
-                {
-                    payment.PaymentDate = DateTime.UtcNow;
-                }
-            }
-            else if (payment.AmountPaid > 0)
-            {
-                payment.PaymentStatus = PaymentStatus.PartiallyPaid;
-            }
-            else
-            {
-                payment.PaymentStatus = PaymentStatus.Pending;
-            }
-            
             await _paymentCollection.ReplaceOneAsync(
                 p => p.Id == payment.Id,
                 payment);
