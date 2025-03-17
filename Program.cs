@@ -8,6 +8,10 @@ using OpenTelemetry.Trace;
 using Serilog;
 using System.Text;
 using System.Globalization;
+using API.Extensions;
+using Application.Interfaces;
+using Application.Services;
+using Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,24 +42,52 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Registrar servicios de autenticación
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+
 // Configuración de JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = Encoding.UTF8.GetBytes(jwtSettings["Secret"] ?? ""); 
+var secretKey = Encoding.UTF8.GetBytes(jwtSettings["Secret"] ?? "super_secreto_por_defecto"); 
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.TokenValidationParameters = new TokenValidationParameters
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(secretKey),
+        ValidIssuer = jwtSettings["Issuer"] ?? "https://tuapi.com",
+        ValidAudience = jwtSettings["Audience"] ?? "https://tucliente.com",
+        ClockSkew = TimeSpan.Zero
+    };
+    
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(secretKey),
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"]
-        };
-    });
+            Console.WriteLine($"Error de autenticación: {context.Exception}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine("Token validado correctamente");
+            return Task.CompletedTask;
+        },
+        OnMessageReceived = context =>
+        {
+            Console.WriteLine($"Token recibido: {context.Token}");
+            return Task.CompletedTask;
+        }
+    };
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -79,7 +111,7 @@ builder.Services
 var app = builder.Build();
 
 // Ejecutar seeders
-await app.Services.SeedDatabaseAsync();
+await Infrastructure.ServiceCollectionExtensions.SeedDatabaseAsync(app.Services);
 
 // Configuración de Swagger
 if (app.Environment.IsDevelopment())
@@ -108,8 +140,10 @@ app.UseStaticFiles();
 // Usar CORS
 app.UseCors("AllowAll");
 
+// Middleware de autenticación y autorización
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRoleAuthorization(); // Middleware personalizado para verificar roles
 
 app.UseSerilogRequestLogging();
 
