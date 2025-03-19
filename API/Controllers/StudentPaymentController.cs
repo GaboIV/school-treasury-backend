@@ -120,5 +120,66 @@ namespace API.Controllers
                 return StatusCode(500, new ApiResponse<StudentPaymentDto>(null, $"Error al registrar el pago: {ex.Message}", false));
             }
         }
+
+        [HttpPut("update-payment-details/{id}")]
+        public async Task<ActionResult<ApiResponse<StudentPaymentDto>>> UpdatePaymentDetails(string id, [FromBody] UpdatePaymentDetailsDto dto)
+        {
+            try
+            {
+                // Obtener el pago existente
+                var existingPayment = await _paymentService.GetPaymentByIdAsync(id);
+                
+                // Crear un dto de actualización manteniendo el monto pagado original
+                var updateDto = new UpdateStudentPaymentDto
+                {
+                    AmountPaid = existingPayment.AmountPaid,
+                    Comment = dto.Comment,
+                    Images = dto.Images,
+                    PaymentDate = dto.PaymentDate
+                };
+                
+                var payment = await _paymentService.UpdatePaymentAsync(id, updateDto);
+                return Ok(new ApiResponse<StudentPaymentDto>(payment, "Detalles del pago actualizados exitosamente"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ApiResponse<StudentPaymentDto>(null, ex.Message, false));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<StudentPaymentDto>(null, $"Error al actualizar detalles del pago: {ex.Message}", false));
+            }
+        }
+
+        [HttpPut("update-payment-with-images/{id}")]
+        public async Task<ActionResult<ApiResponse<StudentPaymentDto>>> UpdatePaymentWithImages(string id, [FromForm] UpdatePaymentImagesDto dto)
+        {
+            try
+            {
+                // Obtener el pago existente para mantener su monto
+                var existingPayment = await _paymentService.GetPaymentByIdAsync(id);
+                
+                // Crear dto de registro manteniendo el monto pagado
+                var registerDto = new RegisterPaymentWithImagesDto
+                {
+                    Id = id,
+                    AmountPaid = existingPayment.AmountPaid,
+                    Comment = dto.Comment,
+                    Images = dto.Images,
+                    PaymentDate = dto.PaymentDate
+                };
+                
+                var result = await _paymentService.RegisterPaymentWithImagesAsync(registerDto);
+                return Ok(new ApiResponse<StudentPaymentDto>(result, "Pago actualizado exitosamente"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ApiResponse<StudentPaymentDto>(null, ex.Message, false));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<StudentPaymentDto>(null, $"Error al actualizar el pago: {ex.Message}", false));
+            }
+        }
     }
 }

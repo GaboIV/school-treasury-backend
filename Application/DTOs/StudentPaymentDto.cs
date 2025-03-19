@@ -34,6 +34,7 @@ namespace Application.DTOs
         public List<string> Images { get; set; } = new List<string>();
         public string? Voucher { get; set; }
         public string? Comment { get; set; }
+        public DateTime? PaymentDate { get; set; }
     }
     
     public class UpdateStudentPaymentDto
@@ -42,5 +43,14 @@ namespace Application.DTOs
         public List<string>? Images { get; set; }
         public string? Voucher { get; set; }
         public string? Comment { get; set; }
+        public DateTime? PaymentDate { get; set; }
+    }
+    
+    public class UpdatePaymentDetailsDto
+    {
+        public List<string>? Images { get; set; }
+        public string? Voucher { get; set; }
+        public string? Comment { get; set; }
+        public DateTime? PaymentDate { get; set; }
     }
 } 

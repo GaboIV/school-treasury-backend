@@ -4,6 +4,7 @@ using Infrastructure.Logging;
 using Infrastructure.Persistence.Seeders;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
+using Infrastructure.Seeders;
 using MongoDB.Driver;
 
 namespace Infrastructure
@@ -38,10 +39,12 @@ namespace Infrastructure
             services.AddScoped<ITransactionLogRepository, TransactionLogRepository>();
             services.AddScoped<ITransactionRepository, TransactionRepository>();
             services.AddScoped<IInterestLinkRepository, InterestLinkRepository>();
+            services.AddScoped<IUserRepository, UserRepository>();
 
             // Registrar seeders
             services.AddScoped<ISeeder, StudentSeeder>();
             services.AddScoped<DatabaseSeeder>();
+            services.AddScoped<UserSeeder>();
 
             // Registrar servicios
             services.AddScoped<IFileService, FileService>();

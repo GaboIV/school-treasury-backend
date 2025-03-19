@@ -161,7 +161,8 @@ namespace Application.Services
                     Images = dto.Images,
                     Voucher = dto.Voucher,
                     Comment = dto.Comment,
-                    Pending = collection.IndividualAmount - dto.AmountPaid
+                    Pending = collection.IndividualAmount - dto.AmountPaid,
+                    PaymentDate = dto.PaymentDate
                 };
 
                 var individualAmount = (collection.AdjustedIndividualAmount != null ? collection.AdjustedIndividualAmount : collection.IndividualAmount) ?? 0;
@@ -180,11 +181,22 @@ namespace Application.Services
                     }
                     
                     payment.Pending = 0;
-                    payment.PaymentDate = DateTime.UtcNow;
+                    
+                    // Si no se proporcionó una fecha, se establece automáticamente
+                    if (payment.PaymentDate == null)
+                    {
+                        payment.PaymentDate = DateTime.UtcNow;
+                    }
                 }
                 else if (dto.AmountPaid > 0)
                 {
                     payment.PaymentStatus = PaymentStatus.PartiallyPaid;
+                    
+                    // Si no se proporcionó una fecha, se establece automáticamente
+                    if (payment.PaymentDate == null)
+                    {
+                        payment.PaymentDate = DateTime.UtcNow;
+                    }
                 }
 
                 await _paymentRepository.CreateAsync(payment);
@@ -221,6 +233,12 @@ namespace Application.Services
             payment.Voucher = dto.Voucher;
             payment.Comment = dto.Comment;
             payment.UpdatedAt = DateTime.UtcNow;
+            
+            // Actualizar la fecha de pago si se proporciona
+            if (dto.PaymentDate.HasValue)
+            {
+                payment.PaymentDate = dto.PaymentDate;
+            }
 
             // Actualizar imágenes si se proporcionan
             if (dto.Images != null && dto.Images.Any())
@@ -246,20 +264,31 @@ namespace Application.Services
                 payment.PaymentStatus = PaymentStatus.Paid;
                 payment.Excedent = payment.AmountPaid - amountToCompare;
                 payment.Pending = 0;
-                payment.PaymentDate = DateTime.UtcNow;
+                
+                // Si no tiene fecha de pago, establecerla
+                if (payment.PaymentDate == null)
+                {
+                    payment.PaymentDate = DateTime.UtcNow;
+                }
             }
             else if (payment.AmountPaid > 0)
             {
                 payment.PaymentStatus = PaymentStatus.PartiallyPaid;
                 payment.Excedent = 0;
                 payment.Pending = amountToCompare - payment.AmountPaid;
-                payment.PaymentDate = DateTime.UtcNow;
+                
+                // Si no tiene fecha de pago, establecerla
+                if (payment.PaymentDate == null)
+                {
+                    payment.PaymentDate = DateTime.UtcNow;
+                }
             }
             else
             {
                 payment.PaymentStatus = PaymentStatus.Pending;
                 payment.Excedent = 0;
                 payment.Pending = amountToCompare;
+                // Si el monto es 0, anular la fecha de pago
                 payment.PaymentDate = null;
             }
 
@@ -439,6 +468,13 @@ namespace Application.Services
             payment.AmountPaid = dto.AmountPaid;
             payment.Comment = dto.Comment;
             payment.Images.AddRange(imagePaths);
+            
+            // Actualizar la fecha de pago si se proporciona
+            if (dto.PaymentDate.HasValue)
+            {
+                payment.PaymentDate = dto.PaymentDate;
+            }
+            
             _logger.LogInformation("Service: Monto actualizado a {AmountPaid} para PaymentId: {PaymentId}", dto.AmountPaid, dto.Id);
 
             // Comparación de montos antes de definir el estado
@@ -457,7 +493,13 @@ namespace Application.Services
                 payment.PaymentStatus = PaymentStatus.Paid;
                 payment.Excedent = payment.AmountPaid - amountToCompare;
                 payment.Pending = 0;
-                payment.PaymentDate = DateTime.UtcNow;
+                
+                // Si no tiene fecha de pago, establecerla
+                if (payment.PaymentDate == null)
+                {
+                    payment.PaymentDate = DateTime.UtcNow;
+                }
+                
                 _logger.LogInformation("Service: Pago completado. Excedente: {Excedent}, Estado: {PaymentStatus}", payment.Excedent, payment.PaymentStatus);
             }
             else if (payment.AmountPaid > 0)
@@ -465,7 +507,13 @@ namespace Application.Services
                 payment.PaymentStatus = PaymentStatus.PartiallyPaid;
                 payment.Excedent = 0;
                 payment.Pending = amountToCompare - payment.AmountPaid;
-                payment.PaymentDate = DateTime.UtcNow;
+                
+                // Si no tiene fecha de pago, establecerla
+                if (payment.PaymentDate == null)
+                {
+                    payment.PaymentDate = DateTime.UtcNow;
+                }
+                
                 _logger.LogInformation("Service: Pago parcial. Pendiente: {Pending}, Estado: {PaymentStatus}", payment.Pending, payment.PaymentStatus);
             }
             else
@@ -473,6 +521,8 @@ namespace Application.Services
                 payment.PaymentStatus = PaymentStatus.Pending;
                 payment.Excedent = 0;
                 payment.Pending = amountToCompare;
+                // Si el monto es 0, anular la fecha de pago
+                payment.PaymentDate = null;
                 _logger.LogInformation("Service: Pago pendiente. Pendiente: {Pending}, Estado: {PaymentStatus}", payment.Pending, payment.PaymentStatus);
             }
             

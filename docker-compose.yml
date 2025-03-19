@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5501:5200"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MongoDB__ConnectionString=mongodb://papps:fgdfsdfsdfdf@192.241.234.31:27017/?authSource=admin
+      - MongoDB__DatabaseName=SchoolTreasure
+      - Serilog__WriteTo__1__Args__serverUrl=http://seq:5432
+    depends_on:
+      - seq
+    networks:
+      - school-treasury-network
+    volumes:
+      - ./wwwroot:/app/wwwroot
+  seq:
+    image: datalust/seq:latest
+    ports:
+      - "5432:5341"
+      - "8071:80"
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - seq_data:/data
+    networks:
+      - school-treasury-network
+
+networks:
+  school-treasury-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  seq_data:
