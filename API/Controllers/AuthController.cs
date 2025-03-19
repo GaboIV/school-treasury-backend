@@ -1,10 +1,9 @@
-using System.Threading.Tasks;
+using Domain.Enums;
 using API.Attributes;
 using Application.DTOs.Auth;
 using Application.Interfaces;
-using Domain.Enums;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API.Controllers
 {

@@ -148,4 +148,13 @@ app.UseRoleAuthorization(); // Middleware personalizado para verificar roles
 app.UseSerilogRequestLogging();
 
 app.MapControllers();
-app.Run("http://192.168.18.137:5200");
+
+// Modificar para escuchar en todas las interfaces cuando se ejecuta en Docker
+if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
+{
+    app.Run("http://0.0.0.0:5200");
+}
+else
+{
+    app.Run("http://192.168.18.137:5200");
+}

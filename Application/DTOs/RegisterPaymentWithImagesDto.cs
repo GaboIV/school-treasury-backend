@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 
 namespace Application.DTOs
@@ -9,5 +10,6 @@ namespace Application.DTOs
         public decimal AmountPaid { get; set; }
         public string? Comment { get; set; }
         public List<IFormFile> Images { get; set; } = new List<IFormFile>();
+        public DateTime? PaymentDate { get; set; }
     }
 } 
