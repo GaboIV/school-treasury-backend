@@ -1,5 +1,7 @@
 using Domain.Entities;
+using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 namespace Application.Interfaces
@@ -11,5 +13,6 @@ namespace Application.Interfaces
         Task<Student> CreateAsync(Student student);
         Task UpdateAsync(Student student);
         Task DeleteAsync(string id);
+        Task<int> CountAsync(Expression<Func<Student, bool>> filter);
     }
 } 

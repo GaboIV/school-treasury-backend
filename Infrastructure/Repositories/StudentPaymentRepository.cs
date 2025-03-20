@@ -150,7 +150,7 @@ namespace Infrastructure.Repositories
 
         public async Task CreatePaymentsForCollectionAsync(string collectionId, decimal individualAmount)
         {
-            var students = await _studentCollection.Find(_ => true).ToListAsync();
+            var students = await _studentCollection.Find(s => s.Status == true).ToListAsync();
             var payments = students.Select(student => new StudentPayment
             {
                 CollectionId = collectionId,
