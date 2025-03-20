@@ -14,17 +14,20 @@ namespace Application.Services {
         private readonly IStudentPaymentRepository _studentPaymentRepository;
         private readonly IPettyCashService _pettyCashService;
         private readonly ILoggerManager _logger;
+        private readonly IStudentRepository _studentRepository;
 
         public CollectionService(
             ICollectionRepository collectionRepository,
             IStudentPaymentRepository studentPaymentRepository,
             IPettyCashService pettyCashService,
-            ILoggerManager logger)
+            ILoggerManager logger,
+            IStudentRepository studentRepository)
         {
             _collectionRepository = collectionRepository;
             _studentPaymentRepository = studentPaymentRepository;
             _pettyCashService = pettyCashService;
             _logger = logger;
+            _studentRepository = studentRepository;
         }
 
         public async Task<IEnumerable<Collection>> GetAllCollectionsAsync()
@@ -55,11 +58,14 @@ namespace Application.Services {
             _logger.LogInfo($"Creando nuevo cobro: {dto.Name} con monto total: {dto.TotalAmount}");
             
             decimal individualAmount = 0;
-            int totalStudents = 24;
+            
+            // Obtener la cantidad real de estudiantes registrados
+            int totalStudents = await _studentRepository.CountAsync(s => s.Status == true);
+            _logger.LogInfo($"Total de estudiantes registrados en el sistema: {totalStudents}");
             
             if (dto.StudentQuantity == "all") {
                 individualAmount = dto.TotalAmount / totalStudents;
-                _logger.LogDebug($"Cobro para todos los estudiantes. Monto individual calculado: {individualAmount}");
+                _logger.LogInfo($"Cobro para todos los estudiantes. Monto individual calculado: {individualAmount}");
             }
 
             var collection = new Collection
@@ -101,7 +107,10 @@ namespace Application.Services {
             _logger.LogInfo($"Actualizando cobro con ID: {dto.Id}");
             
             decimal individualAmount = 0;
-            int totalStudents = 24;
+            
+            // Obtener la cantidad real de estudiantes registrados
+            int totalStudents = await _studentRepository.CountAsync(s => s.Status == true);
+            _logger.LogDebug($"Total de estudiantes registrados en el sistema: {totalStudents}");
 
             var existingCollection = await _collectionRepository.GetByIdAsync(dto.Id!);
             

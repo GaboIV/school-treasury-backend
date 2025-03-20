@@ -4,6 +4,7 @@ using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Linq.Expressions;
 
 namespace Infrastructure.Repositories
 {
@@ -66,6 +67,11 @@ namespace Infrastructure.Repositories
                 student.DeletedAt = DateTime.UtcNow;
                 await UpdateAsync(student);
             }
+        }
+
+        public async Task<int> CountAsync(Expression<Func<Student, bool>> filter)
+        {
+            return (int)await _studentCollection.CountDocumentsAsync(filter);
         }
     }
 } 
