@@ -97,6 +97,7 @@ namespace Application.Services
                 new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
                 new Claim(ClaimTypes.Role, user.Role.ToString()),
+                new Claim(ClaimTypes.Sid, user.StudentId),
                 new Claim("FullName", user.FullName)
             };
 

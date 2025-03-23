@@ -57,7 +57,8 @@ namespace API.Controllers
                 Username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value,
                 Email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value,
                 Role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
-                FullName = User.FindFirst("FullName")?.Value
+                FullName = User.FindFirst("FullName")?.Value,
+                StudentId = User.FindFirst(System.Security.Claims.ClaimTypes.Sid)?.Value
             });
         }
     }
