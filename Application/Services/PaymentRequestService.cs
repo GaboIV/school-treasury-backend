@@ -3,6 +3,7 @@ using Application.Interfaces;
 using AutoMapper;
 using Domain.Entities;
 using Domain.Interfaces;
+using System.Linq;
 
 namespace Application.Services
 {
@@ -16,6 +17,7 @@ namespace Application.Services
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly ICashboxService _cashboxService;
         private readonly IStudentPaymentService _studentPaymentService;
+        private readonly IFileService _fileService;
 
         public PaymentRequestService(
             IRepository<PaymentRequest> paymentRequestRepository,
@@ -25,7 +27,8 @@ namespace Application.Services
             IMapper mapper,
             IWebHostEnvironment webHostEnvironment,
             ICashboxService cashboxService,
-            IStudentPaymentService studentPaymentService)
+            IStudentPaymentService studentPaymentService,
+            IFileService fileService)
         {
             _paymentRequestRepository = paymentRequestRepository;
             _studentPaymentRepository = studentPaymentRepository;
@@ -35,6 +38,7 @@ namespace Application.Services
             _webHostEnvironment = webHostEnvironment;
             _cashboxService = cashboxService;
             _studentPaymentService = studentPaymentService;
+            _fileService = fileService;
         }
 
         public async Task<IEnumerable<PaymentRequestDto>> GetAllPaymentRequestsAsync()
@@ -81,12 +85,22 @@ namespace Application.Services
             if (collection == null)
                 throw new KeyNotFoundException($"No se encontró la colección con ID {dto.CollectionId}");
 
+            // Buscar el pago del estudiante para esta colección
+            var studentPayments = await _studentPaymentRepository.FindAsync(p => 
+                p.StudentId == dto.StudentId && p.CollectionId == dto.CollectionId);
+            
+            var studentPayment = studentPayments.FirstOrDefault();
+            
+            decimal pendingAmount = 0;
+            pendingAmount = collection.AdjustedIndividualAmount ?? collection.IndividualAmount;
+            
             // Crear la solicitud de pago
             var paymentRequest = new PaymentRequest
             {
                 CollectionId = dto.CollectionId,
                 StudentId = dto.StudentId,
                 AmountPaid = dto.AmountPaid,
+                PendingAmount = pendingAmount,
                 Comment = dto.Comment,
                 PaymentDate = dto.PaymentDate ?? DateTime.UtcNow,
                 Status = PaymentRequestStatus.Pending
@@ -121,12 +135,23 @@ namespace Application.Services
             if (collection == null)
                 throw new KeyNotFoundException($"No se encontró la colección con ID {dto.CollectionId}");
 
+            // Buscar el pago del estudiante para esta colección
+            var studentPayments = await _studentPaymentRepository.FindAsync(p => 
+                p.StudentId == dto.StudentId && p.CollectionId == dto.CollectionId);
+            
+            var studentPayment = studentPayments.FirstOrDefault();
+            
+            decimal pendingAmount = 0;
+
+            pendingAmount = collection.AdjustedIndividualAmount ?? collection.IndividualAmount;
+
             // Crear la solicitud de pago
             var paymentRequest = new PaymentRequest
             {
                 CollectionId = dto.CollectionId,
                 StudentId = dto.StudentId,
                 AmountPaid = dto.AmountPaid,
+                PendingAmount = pendingAmount,
                 Comment = dto.Comment,
                 PaymentDate = dto.PaymentDate ?? DateTime.UtcNow,
                 Status = PaymentRequestStatus.Pending
@@ -523,6 +548,7 @@ namespace Application.Services
             {
                 dto.CollectionName = collection.Name;
                 dto.AmountCollection = collection.TotalAmount;
+                dto.Collection = _mapper.Map<CollectionDto>(collection);
             }
 
             // Si está aprobada y tiene ID de pago asociado, obtener información del administrador
@@ -532,7 +558,26 @@ namespace Application.Services
                 dto.ApprovedByAdminName = "Administrador"; // Valor por defecto
             }
 
+            // Convertir rutas relativas de imágenes a URLs absolutas
+            dto.Images = ConvertToAbsoluteUrls(dto.Images);
+
             return dto;
+        }
+
+        private List<string> ConvertToAbsoluteUrls(List<string> relativeUrls)
+        {
+            var absoluteUrls = new List<string>();
+            
+            foreach (var relativeUrl in relativeUrls)
+            {
+                if (!string.IsNullOrEmpty(relativeUrl))
+                {
+                    // Usar el FileService para convertir la ruta relativa a URL absoluta
+                    absoluteUrls.Add(_fileService.GetImageUrl(relativeUrl));
+                }
+            }
+            
+            return absoluteUrls;
         }
 
         private async Task<List<string>> UploadImages(List<IFormFile> images)

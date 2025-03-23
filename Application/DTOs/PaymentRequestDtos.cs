@@ -14,6 +14,7 @@ namespace Application.DTOs
         public string? CollectionName { get; set; }
         public decimal AmountCollection { get; set; }
         public decimal AmountPaid { get; set; }
+        public decimal PendingAmount { get; set; }
         public PaymentRequestStatus Status { get; set; }
         public List<string> Images { get; set; } = new List<string>();
         public string? Voucher { get; set; }
@@ -26,6 +27,7 @@ namespace Application.DTOs
         public string? ApprovedByAdminName { get; set; }
         public DateTime? ApprovedAt { get; set; }
         public string? StudentPaymentId { get; set; }
+        public CollectionDto? Collection { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

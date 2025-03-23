@@ -15,6 +15,9 @@ namespace Domain.Entities
         [BsonElement("amountPaid")]
         public decimal AmountPaid { get; set; } = 0;
         
+        [BsonElement("pendingAmount")]
+        public decimal PendingAmount { get; set; } = 0;
+        
         [BsonElement("requestStatus")]
         public PaymentRequestStatus Status { get; set; } = PaymentRequestStatus.Pending;
         
