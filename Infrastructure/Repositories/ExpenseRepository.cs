@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Domain.Entities;
+using Infrastructure.Persistence;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using System;
@@ -19,10 +20,10 @@ namespace Infrastructure.Repositories
         /// <summary>
         /// Constructor
         /// </summary>
-        /// <param name="database">Base de datos MongoDB</param>
-        public ExpenseRepository(IMongoDatabase database)
+        /// <param name="context">Contexto de la base de datos MongoDB</param>
+        public ExpenseRepository(MongoDbContext context)
         {
-            _expenses = database.GetCollection<Expense>("Expenses");
+            _expenses = context.Expenses;
         }
 
         /// <summary>

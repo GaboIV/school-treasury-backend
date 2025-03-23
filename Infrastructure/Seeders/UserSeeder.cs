@@ -1,7 +1,11 @@
 using Domain.Entities;
 using Domain.Enums;
+using Infrastructure.Persistence;
+using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using BC = BCrypt.Net.BCrypt;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Infrastructure.Seeders
 {
@@ -11,10 +15,10 @@ namespace Infrastructure.Seeders
         private readonly IMongoCollection<Student> _students;
         private readonly ILogger<UserSeeder> _logger;
 
-        public UserSeeder(IMongoDatabase database, ILogger<UserSeeder> logger)
+        public UserSeeder(MongoDbContext context, ILogger<UserSeeder> logger)
         {
-            _users = database.GetCollection<User>("Users");
-            _students = database.GetCollection<Student>("Students");
+            _users = context.Users;
+            _students = context.Students;
             _logger = logger;
         }
 

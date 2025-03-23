@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Domain.Entities;
+using Infrastructure.Persistence;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 
@@ -8,10 +9,12 @@ namespace Infrastructure.Repositories
     public class CollectionRepository : ICollectionRepository
     {
         private readonly IMongoCollection<Collection> _collections;
+        private readonly IMongoCollection<CollectionType> _collectionTypes;
 
-        public CollectionRepository(IMongoDatabase database)
+        public CollectionRepository(MongoDbContext context)
         {
-            _collections = database.GetCollection<Collection>("Collections");
+            _collections = context.Collections;
+            _collectionTypes = context.CollectionTypes;
         }
 
         public async Task<List<Collection>> GetAllAsync() =>
@@ -47,7 +50,7 @@ namespace Infrastructure.Repositories
         public async Task<(List<Collection> Items, int TotalCount)> GetPaginatedAsync(int page, int pageSize)
         {
             var query = from collection in _collections.AsQueryable()
-                        join collectionType in _collections.Database.GetCollection<CollectionType>("CollectionTypes").AsQueryable()
+                        join collectionType in _collectionTypes.AsQueryable()
                         on collection.CollectionTypeId equals collectionType.Id into collectionGroup
                         from collectionType in collectionGroup.DefaultIfEmpty()
                         select new Collection

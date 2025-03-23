@@ -1,11 +1,13 @@
 using Application.Interfaces;
 using Application.Services;
 using Infrastructure.Logging;
+using Infrastructure.Persistence;
 using Infrastructure.Persistence.Seeders;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
 using Infrastructure.Seeders;
 using MongoDB.Driver;
+using Gabonet.Hubble.Extensions;
 
 namespace Infrastructure
 {
@@ -19,11 +21,30 @@ namespace Infrastructure
             if (string.IsNullOrEmpty(connectionString))
                 throw new ArgumentNullException(nameof(connectionString), "MongoDB connection string is missing.");
 
-            services.AddSingleton<IMongoClient>(_ => new MongoClient(connectionString));
-            services.AddSingleton<IMongoDatabase>(sp =>
+            // Configuración básica para Hubble
+            services.AddHttpContextAccessor();
+            services.AddHubble(options =>
             {
-                var client = sp.GetRequiredService<IMongoClient>();
-                return client.GetDatabase(databaseName);
+                options.ConnectionString = configuration["MongoDB:ConnectionString"];
+                options.DatabaseName = configuration["MongoDB:DatabaseName"];
+                options.ServiceName = configuration["Hubble:ServiceName"] ?? "MyAppService";
+                options.TimeZoneId = configuration["Hubble:TimeZoneId"];
+            });
+            
+            // Registrar MongoDbContext
+            services.AddSingleton<MongoDbContext>(provider => {
+                var httpContextAccessor = provider.GetRequiredService<IHttpContextAccessor>();
+                return new MongoDbContext(connectionString, databaseName, httpContextAccessor);
+            });
+            
+            services.AddSingleton<IMongoClient>(sp => {
+                var mongoDbContext = sp.GetRequiredService<MongoDbContext>();
+                return mongoDbContext.GetMongoClient();
+            });
+            
+            services.AddSingleton<IMongoDatabase>(sp => {
+                var mongoDbContext = sp.GetRequiredService<MongoDbContext>();
+                return mongoDbContext.GetMongoDatabase();
             });
 
             // Registrar el LoggerManager

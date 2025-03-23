@@ -50,7 +50,8 @@ namespace API.Controllers
         [Authorize]
         public IActionResult GetCurrentUser()
         {
-            Console.WriteLine("Entrando al servicios");
+            var studentId = User.FindFirst(System.Security.Claims.ClaimTypes.Sid)?.Value;
+            
             return Ok(new
             {
                 Id = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
@@ -58,7 +59,7 @@ namespace API.Controllers
                 Email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value,
                 Role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
                 FullName = User.FindFirst("FullName")?.Value,
-                StudentId = User.FindFirst(System.Security.Claims.ClaimTypes.Sid)?.Value
+                StudentId = studentId
             });
         }
     }

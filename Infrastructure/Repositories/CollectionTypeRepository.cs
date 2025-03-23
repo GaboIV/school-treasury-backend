@@ -1,5 +1,7 @@
 using Application.Interfaces;
 using Domain.Entities;
+using Infrastructure.Logging;
+using Infrastructure.Persistence;
 using MongoDB.Driver;
 
 namespace Infrastructure.Repositories
@@ -9,9 +11,9 @@ namespace Infrastructure.Repositories
         private readonly IMongoCollection<CollectionType> _expensiveTypes;
         private readonly ILoggerManager _logger;
 
-        public CollectionTypeRepository(IMongoDatabase database, ILoggerManager logger)
+        public CollectionTypeRepository(MongoDbContext context, ILoggerManager logger)
         {
-            _expensiveTypes = database.GetCollection<CollectionType>("CollectionTypes");
+            _expensiveTypes = context.CollectionTypes;
             _logger = logger;
         }
 
