@@ -7,5 +7,6 @@ namespace Application.Interfaces
     {
         Task<LoginResponse> LoginAsync(LoginRequest request);
         Task<bool> RegisterAsync(RegisterRequest request);
+        Task<bool> ChangePasswordAsync(string userId, ChangePasswordRequest request);
     }
 } 

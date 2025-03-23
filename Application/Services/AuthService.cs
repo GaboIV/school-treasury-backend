@@ -48,7 +48,8 @@ namespace Application.Services
                 FullName = user.FullName,
                 Role = user.Role,
                 Token = token,
-                StudentId = user.StudentId
+                StudentId = user.StudentId,
+                HasChangedPassword = user.HasChangedPassword
             };
         }
 
@@ -78,10 +79,34 @@ namespace Application.Services
                 request.Role
             )
             {
-                StudentId = request.StudentId
+                StudentId = request.StudentId,
+                HasChangedPassword = false // Por defecto, la contraseña no ha sido cambiada
             };
 
             await _userRepository.AddAsync(user);
+            return true;
+        }
+        
+        public async Task<bool> ChangePasswordAsync(string userId, ChangePasswordRequest request)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            
+            if (user == null)
+            {
+                return false;
+            }
+            
+            // Verificar la contraseña actual
+            if (!BC.Verify(request.CurrentPassword, user.PasswordHash))
+            {
+                return false;
+            }
+            
+            // Actualizar la contraseña
+            user.PasswordHash = BC.HashPassword(request.NewPassword);
+            user.HasChangedPassword = true;
+            
+            await _userRepository.UpdateAsync(user);
             return true;
         }
 

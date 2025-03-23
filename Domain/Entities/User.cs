@@ -13,6 +13,7 @@ namespace Domain.Entities
         public string StudentId { get; set; } // Referencia al estudiante si el usuario es un Representante
         public bool IsActive { get; set; } = true;
         public DateTime LastLogin { get; set; }
+        public bool HasChangedPassword { get; set; } = false;
         
         public User()
         {
@@ -27,6 +28,7 @@ namespace Domain.Entities
             FullName = fullName;
             Role = role;
             LastLogin = DateTime.UtcNow;
+            HasChangedPassword = false;
         }
     }
 } 
