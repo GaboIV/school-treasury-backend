@@ -47,6 +47,9 @@ namespace Application
             services.AddScoped<IInterestLinkService, InterestLinkService>();
             services.AddScoped<IInterestLinkRepository, InterestLinkRepository>();
 
+            // Cashbox
+            services.AddScoped<ICashboxService, CashboxService>();
+
             return services;
         }
     }

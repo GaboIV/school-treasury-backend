@@ -55,6 +55,12 @@ namespace Infrastructure.Persistence
         public IMongoClient GetMongoClient() => _client;
         public IMongoDatabase GetMongoDatabase() => _database;
 
+        // Método genérico para obtener colecciones
+        public IMongoCollection<T> GetCollection<T>() where T : BaseEntity
+        {
+            return _database.GetCollection<T>(typeof(T).Name + "s");
+        }
+
         // Métodos para obtener colecciones específicas
         public IMongoCollection<Student> Students => _database.GetCollection<Student>("Students");
         public IMongoCollection<StudentPayment> StudentPayments => _database.GetCollection<StudentPayment>("StudentPayments");
@@ -66,5 +72,6 @@ namespace Infrastructure.Persistence
         public IMongoCollection<Transaction> Transactions => _database.GetCollection<Transaction>("Transactions");
         public IMongoCollection<InterestLink> InterestLinks => _database.GetCollection<InterestLink>("InterestLinks");
         public IMongoCollection<User> Users => _database.GetCollection<User>("Users");
+        public IMongoCollection<PaymentRequest> PaymentRequests => _database.GetCollection<PaymentRequest>("PaymentRequests");
     }
 } 

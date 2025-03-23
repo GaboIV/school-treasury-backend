@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/v1/[controller]")]
     public class StudentPaymentController : ControllerBase
     {
         private readonly IStudentPaymentService _paymentService;

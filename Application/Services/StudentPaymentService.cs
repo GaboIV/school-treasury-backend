@@ -601,7 +601,7 @@ namespace Application.Services
                 Voucher = payment.Voucher,
                 Excedent = payment.Excedent,
                 Surplus = payment.Surplus,
-                Pending = payment.Pending,
+                Pending = amountToShow - payment.AmountPaid,
                 Comment = payment.Comment,
                 PaymentDate = payment.PaymentDate,
                 CreatedAt = payment.CreatedAt,

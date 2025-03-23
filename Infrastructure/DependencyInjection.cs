@@ -8,6 +8,7 @@ using Infrastructure.Services;
 using Infrastructure.Seeders;
 using MongoDB.Driver;
 using Gabonet.Hubble.Extensions;
+using Domain.Interfaces;
 
 namespace Infrastructure
 {
@@ -61,6 +62,7 @@ namespace Infrastructure
             services.AddScoped<ITransactionRepository, TransactionRepository>();
             services.AddScoped<IInterestLinkRepository, InterestLinkRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
 
             // Registrar seeders
             services.AddScoped<ISeeder, StudentSeeder>();
@@ -78,6 +80,7 @@ namespace Infrastructure
             services.AddScoped<ITransactionLogService, TransactionLogService>();
             services.AddScoped<IDashboardService, DashboardService>();
             services.AddScoped<IInterestLinkService, InterestLinkService>();
+            services.AddScoped<IPaymentRequestService, PaymentRequestService>();
 
             return services;
         }
