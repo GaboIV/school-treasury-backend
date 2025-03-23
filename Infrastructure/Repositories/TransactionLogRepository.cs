@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Domain.Entities;
+using Infrastructure.Persistence;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
@@ -11,9 +12,9 @@ namespace Infrastructure.Repositories
     {
         private readonly IMongoCollection<TransactionLog> _collection;
 
-        public TransactionLogRepository(IMongoDatabase database)
+        public TransactionLogRepository(MongoDbContext context)
         {
-            _collection = database.GetCollection<TransactionLog>("TransactionLogs");
+            _collection = context.TransactionLogs;
         }
 
         public async Task<IEnumerable<TransactionLog>> GetAllAsync()

@@ -1,4 +1,7 @@
 using Domain.Entities;
+using Infrastructure.Persistence;
+using Application.Interfaces;
+using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -9,9 +12,9 @@ namespace Infrastructure.Persistence.Seeders
     {
         private readonly IMongoCollection<Student> _studentCollection;
 
-        public StudentSeeder(IMongoDatabase database)
+        public StudentSeeder(MongoDbContext context)
         {
-            _studentCollection = database.GetCollection<Student>("Students");
+            _studentCollection = context.Students;
         }
 
         public async Task SeedAsync()

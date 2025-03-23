@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Domain.Entities;
+using Infrastructure.Persistence;
 using MongoDB.Driver;
 using System;
 using System.Linq;
@@ -11,9 +12,9 @@ namespace Infrastructure.Repositories
     {
         private readonly IMongoCollection<PettyCash> _collection;
 
-        public PettyCashRepository(IMongoDatabase database)
+        public PettyCashRepository(MongoDbContext context)
         {
-            _collection = database.GetCollection<PettyCash>("PettyCash");
+            _collection = context.PettyCash;
         }
 
         public async Task<PettyCash> GetAsync()

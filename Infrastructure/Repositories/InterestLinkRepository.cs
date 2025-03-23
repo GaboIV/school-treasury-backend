@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Domain.Entities;
+using Infrastructure.Persistence;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
@@ -11,9 +12,9 @@ namespace Infrastructure.Repositories
     {
         private readonly IMongoCollection<InterestLink> _interestLinkCollection;
 
-        public InterestLinkRepository(IMongoDatabase database)
+        public InterestLinkRepository(MongoDbContext context)
         {
-            _interestLinkCollection = database.GetCollection<InterestLink>("InterestLinks");
+            _interestLinkCollection = context.InterestLinks;
         }
 
         public async Task<IEnumerable<InterestLink>> GetAllAsync()

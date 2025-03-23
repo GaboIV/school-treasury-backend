@@ -1,6 +1,6 @@
-using System.Threading.Tasks;
 using Application.Interfaces;
 using Domain.Entities;
+using Infrastructure.Persistence;
 using MongoDB.Driver;
 
 namespace Infrastructure.Repositories
@@ -9,9 +9,9 @@ namespace Infrastructure.Repositories
     {
         private readonly IMongoCollection<User> _users;
 
-        public UserRepository(IMongoDatabase database)
+        public UserRepository(MongoDbContext context)
         {
-            _users = database.GetCollection<User>("Users");
+            _users = context.Users;
         }
 
         public async Task<User> GetByIdAsync(string id)

@@ -12,11 +12,12 @@ using API.Extensions;
 using Application.Interfaces;
 using Application.Services;
 using Infrastructure.Repositories;
+using Gabonet.Hubble.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseSerilog((context, loggerConfiguration) => loggerConfiguration
-    .ReadFrom.Configuration(context.Configuration));
+// builder.Host.UseSerilog((context, loggerConfiguration) => loggerConfiguration
+//     .ReadFrom.Configuration(context.Configuration));
 
 Console.WriteLine($"MongoDB ConnectionString: {builder.Configuration["MongoDB:ConnectionString"]}");
 
@@ -93,20 +94,19 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services
-    .AddOpenTelemetry()
-    .ConfigureResource(resource => resource.AddService("SchoolTreasure"))
-    .WithTracing(tracing => {
-        tracing
-            .AddHttpClientInstrumentation()
-            .AddAspNetCoreInstrumentation();
+// builder.Services
+//     .AddOpenTelemetry()
+//     .ConfigureResource(resource => resource.AddService("SchoolTreasure"))
+//     .WithTracing(tracing => {
+//         tracing
+//             .AddHttpClientInstrumentation()
+//             .AddAspNetCoreInstrumentation();
 
-        tracing.AddOtlpExporter(options => {
-            options.Endpoint = new Uri("http://localhost:5341/ingest/otlp/v1/traces");
-            options.Protocol = OtlpExportProtocol.HttpProtobuf;
-        });
-    });
-
+//         tracing.AddOtlpExporter(options => {
+//             options.Endpoint = new Uri("http://localhost:5341/ingest/otlp/v1/traces");
+//             options.Protocol = OtlpExportProtocol.HttpProtobuf;
+//         });
+//     });
 
 var app = builder.Build();
 
@@ -145,7 +145,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRoleAuthorization(); // Middleware personalizado para verificar roles
 
-app.UseSerilogRequestLogging();
+// app.UseSerilogRequestLogging();
+app.UseHubble();
 
 app.MapControllers();
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -91,15 +92,20 @@ namespace Application.Services
             
             var key = Encoding.ASCII.GetBytes(jwtSecret);
             
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
                 new Claim(ClaimTypes.Role, user.Role.ToString()),
-                new Claim(ClaimTypes.Sid, user.StudentId),
-                new Claim("FullName", user.FullName)
+                new Claim("FullName", user.FullName ?? string.Empty)
             };
+
+            // Agregar StudentId solo si no es nulo
+            if (!string.IsNullOrEmpty(user.StudentId))
+            {
+                claims.Add(new Claim(ClaimTypes.Sid, user.StudentId));
+            }
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {

@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Domain.Entities;
+using Infrastructure.Persistence;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
@@ -12,9 +13,9 @@ namespace Infrastructure.Repositories
     {
         private readonly IMongoCollection<Student> _studentCollection;
 
-        public StudentRepository(IMongoDatabase database)
+        public StudentRepository(MongoDbContext context)
         {
-            _studentCollection = database.GetCollection<Student>("Students");
+            _studentCollection = context.Students;
         }
 
         public async Task<IEnumerable<Student>> GetAllAsync()
