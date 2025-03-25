@@ -51,7 +51,15 @@ namespace Application.Services
         public async Task<IEnumerable<Expense>> GetAllExpensesAsync()
         {
             _logger.LogInfo("Servicio: Obteniendo todos los gastos");
-            return await _expenseRepository.GetAllAsync();
+            var expenses = await _expenseRepository.GetAllAsync();
+            
+            // Asegurarnos de que las URLs de las imágenes sean correctas
+            foreach (var expense in expenses)
+            {
+                UpdateImageUrls(expense);
+            }
+            
+            return expenses;
         }
 
         /// <summary>
@@ -62,7 +70,14 @@ namespace Application.Services
         public async Task<Expense> GetExpenseByIdAsync(string id)
         {
             _logger.LogInfo($"Servicio: Obteniendo gasto con ID: {id}");
-            return await _expenseRepository.GetByIdAsync(id);
+            var expense = await _expenseRepository.GetByIdAsync(id);
+            
+            if (expense != null)
+            {
+                UpdateImageUrls(expense);
+            }
+            
+            return expense;
         }
 
         /// <summary>
@@ -82,10 +97,22 @@ namespace Application.Services
                 _logger.LogInfo($"Servicio: Asociando {dto.ImageIds.Count} imágenes al gasto");
                 
                 // Convertir los IDs de imágenes a objetos Image
-                expense.Images = dto.ImageIds.Select(id => new Image
+                expense.Images = dto.ImageIds.Select(imageId => 
                 {
-                    Id = id, // Guardar solo el nombre del archivo
-                    Url = _fileService.GetImageUrl(id) // Generar la URL completa
+                    // Asegurarnos de que tenemos la ruta completa
+                    string fullPath = imageId;
+                    if (!imageId.StartsWith("/uploads/"))
+                    {
+                        fullPath = $"/uploads/expenses/{imageId}";
+                    }
+                    
+                    _logger.LogInfo($"Servicio: Creando imagen con ID {imageId} y ruta {fullPath}");
+                    
+                    return new Image
+                    {
+                        Id = imageId, // Guardar el ID original
+                        Url = _fileService.GetImageUrl(fullPath) // Generar la URL completa con la ruta correcta
+                    };
                 }).ToList();
             }
             
@@ -127,10 +154,22 @@ namespace Application.Services
                 _logger.LogInfo($"Servicio: Actualizando imágenes del gasto, {dto.ImageIds.Count} imágenes");
                 
                 // Convertir los IDs de imágenes a objetos Image
-                existingExpense.Images = dto.ImageIds.Select(id => new Image
+                existingExpense.Images = dto.ImageIds.Select(imageId => 
                 {
-                    Id = id, // Guardar solo el nombre del archivo
-                    Url = _fileService.GetImageUrl(id) // Generar la URL completa
+                    // Asegurarnos de que tenemos la ruta completa
+                    string fullPath = imageId;
+                    if (!imageId.StartsWith("/uploads/"))
+                    {
+                        fullPath = $"/uploads/expenses/{imageId}";
+                    }
+                    
+                    _logger.LogInfo($"Servicio: Actualizando imagen con ID {imageId} y ruta {fullPath}");
+                    
+                    return new Image
+                    {
+                        Id = imageId, // Guardar el ID original
+                        Url = _fileService.GetImageUrl(fullPath) // Generar la URL completa con la ruta correcta
+                    };
                 }).ToList();
             }
             
@@ -166,7 +205,16 @@ namespace Application.Services
             // Eliminar imágenes asociadas si existen
             if (expense.Images != null && expense.Images.Any())
             {
-                var imagePaths = expense.Images.Select(img => img.Id).ToList();
+                // Construir rutas completas para las imágenes si es necesario
+                var imagePaths = expense.Images.Select(img => 
+                {
+                    if (!img.Id.StartsWith("/uploads/"))
+                    {
+                        return $"/uploads/expenses/{img.Id}";
+                    }
+                    return img.Id;
+                }).ToList();
+                
                 _fileService.DeleteImages(imagePaths);
                 _logger.LogInfo($"Servicio: Se eliminaron {imagePaths.Count} imágenes asociadas al gasto");
             }
@@ -197,9 +245,40 @@ namespace Application.Services
         public async Task<(IEnumerable<Expense> expenses, int totalCount)> GetPaginatedExpensesAsync(int page, int pageSize)
         {
             _logger.LogInfo($"Servicio: Obteniendo gastos paginados. Página: {page}, Tamaño: {pageSize}");
-            return await _expenseRepository.GetPaginatedAsync(page, pageSize);
+            var result = await _expenseRepository.GetPaginatedAsync(page, pageSize);
+            
+            // Asegurarnos de que las URLs de las imágenes sean correctas
+            foreach (var expense in result.expenses)
+            {
+                UpdateImageUrls(expense);
+            }
+            
+            return result;
         }
         
+        /// <summary>
+        /// Actualiza las URLs de las imágenes en un gasto
+        /// </summary>
+        /// <param name="expense">Gasto a actualizar</param>
+        private void UpdateImageUrls(Expense expense)
+        {
+            if (expense.Images != null && expense.Images.Any())
+            {
+                foreach (var image in expense.Images)
+                {
+                    // Asegurarnos de que tenemos la ruta completa
+                    string fullPath = image.Id;
+                    if (!fullPath.StartsWith("/uploads/"))
+                    {
+                        fullPath = $"/uploads/expenses/{image.Id}";
+                    }
+                    
+                    // Actualizar la URL con la ruta correcta
+                    image.Url = _fileService.GetImageUrl(fullPath);
+                }
+            }
+        }
+
         /// <summary>
         /// Registra un gasto en la caja chica
         /// </summary>

@@ -125,13 +125,15 @@ public class ExpenseController : ControllerBase
             // Guardar las imágenes y obtener sus IDs
             if (images != null && images.Length > 0)
             {
-                var imagePaths = await _fileService.SaveImagesAsync(images.ToList(), "expenses");
+                // Generar un ID único para este gasto y guardar las imágenes en su propia carpeta
+                var tempExpenseId = Guid.NewGuid().ToString();
+                var imagePaths = await _fileService.SaveImagesAsync(images.ToList(), "expenses", tempExpenseId);
                 
-                // Extraer solo los nombres de archivo de las rutas completas
-                var imageIds = imagePaths.Select(path => Path.GetFileName(path)).ToList();
+                // Ahora, imagePaths ya contiene las rutas completas
+                _logger.LogInfo($"Controlador: Se guardaron {imagePaths.Count} imágenes para el nuevo gasto");
                 
-                dto.ImageIds = imageIds;
-                _logger.LogInfo($"Se guardaron {imageIds.Count} imágenes para el nuevo gasto");
+                // Usar las rutas completas como IDs
+                dto.ImageIds = imagePaths;
             }
             
             var expense = await _expenseService.CreateExpenseAsync(dto);
@@ -198,41 +200,29 @@ public class ExpenseController : ControllerBase
             
             // Procesar imágenes existentes
             List<string> imageIds = new List<string>();
-            
             if (existingImageIds != null && existingImageIds.Any())
             {
-                foreach (var imgId in existingImageIds)
-                {
-                    if (!string.IsNullOrEmpty(imgId))
-                    {
-                        // Extraer solo el nombre del archivo, independientemente del formato de la ruta
-                        string fileName = Path.GetFileName(imgId);
-                        _logger.LogInfo($"Procesando imagen existente: {imgId} -> {fileName}");
-                        imageIds.Add(fileName);
-                    }
-                }
+                // Usar las rutas existentes tal como están
+                imageIds.AddRange(existingImageIds);
+                _logger.LogInfo($"Controlador: Se mantienen {existingImageIds.Count} imágenes existentes");
             }
             
-            // Guardar las nuevas imágenes si existen
+            // Procesar nuevas imágenes
             if (images != null && images.Length > 0)
             {
-                var imagePaths = await _fileService.SaveImagesAsync(images.ToList(), "expenses");
-                
-                // Extraer solo los nombres de archivo de las rutas completas
-                var newImageIds = imagePaths.Select(path => Path.GetFileName(path)).ToList();
-                
-                imageIds.AddRange(newImageIds);
-                _logger.LogInfo($"Se guardaron {newImageIds.Count} nuevas imágenes para el gasto");
+                // Guardar nuevas imágenes en la carpeta del gasto
+                var newImagePaths = await _fileService.SaveImagesAsync(images.ToList(), "expenses", id);
+                imageIds.AddRange(newImagePaths);
+                _logger.LogInfo($"Controlador: Se agregaron {newImagePaths.Count} imágenes nuevas");
             }
             
-            // Asignar los IDs de imágenes al DTO
             dto.ImageIds = imageIds;
             
             var expense = await _expenseService.UpdateExpenseAsync(dto);
             
             if (expense == null)
             {
-                _logger.LogWarn($"Controlador: No se encontró el gasto con ID: {dto.Id} para actualizar");
+                _logger.LogWarn($"Controlador: No se encontró el gasto con ID: {dto.Id}");
                 return NotFound(new ExpenseResponse { 
                     Success = false, 
                     Status = "Not Found", 
@@ -247,7 +237,7 @@ public class ExpenseController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Controlador: Error al actualizar gasto con ID: {id}");
+            _logger.LogError(ex, $"Controlador: Error al actualizar gasto");
             return StatusCode(500, new ExpenseResponse { 
                 Success = false, 
                 Status = "Error", 
@@ -260,7 +250,7 @@ public class ExpenseController : ControllerBase
     /// Elimina un gasto
     /// </summary>
     /// <param name="id">ID del gasto a eliminar</param>
-    /// <returns>Resultado de la operación</returns>
+    /// <returns>Respuesta de éxito</returns>
     [HttpDelete("{id}")]
     [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status404NotFound)]
@@ -275,17 +265,29 @@ public class ExpenseController : ControllerBase
             
             if (!result)
             {
-                _logger.LogWarn($"Controlador: No se encontró el gasto con ID: {id} para eliminar");
-                return NotFound(new ExpenseResponse { Success = false, Status = "Not Found", Message = "Gasto no encontrado" });
+                _logger.LogWarn($"Controlador: No se encontró el gasto con ID: {id}");
+                return NotFound(new ExpenseResponse { 
+                    Success = false, 
+                    Status = "Not Found", 
+                    Message = "Gasto no encontrado" 
+                });
             }
             
             _logger.LogInfo($"Controlador: Gasto eliminado correctamente con ID: {id}");
-            return Ok(new ExpenseResponse { Message = "Gasto eliminado correctamente" });
+            return Ok(new ExpenseResponse { 
+                Success = true, 
+                Status = "Success", 
+                Message = "Gasto eliminado correctamente" 
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Controlador: Error al eliminar gasto con ID: {id}");
-            return StatusCode(500, new ExpenseResponse { Success = false, Status = "Error", Message = "Error interno del servidor" });
+            return StatusCode(500, new ExpenseResponse { 
+                Success = false, 
+                Status = "Error", 
+                Message = "Error interno del servidor" 
+            });
         }
     }
 
@@ -304,23 +306,7 @@ public class ExpenseController : ControllerBase
         
         try
         {
-            // Validar parámetros de paginación
-            if (page < 1)
-            {
-                _logger.LogWarn($"Controlador: Página inválida: {page}, se usará página 1");
-                page = 1;
-            }
-            
-            if (pageSize < 1)
-            {
-                _logger.LogWarn($"Controlador: Tamaño de página inválido: {pageSize}, se usará tamaño 50");
-                pageSize = 50;
-            }
-            
-            // Obtener datos paginados
             var (expenses, totalCount) = await _expenseService.GetPaginatedExpensesAsync(page, pageSize);
-            
-            // Mapear a DTOs
             var expenseDtos = _mapper.Map<IEnumerable<ExpenseDto>>(expenses);
             
             // Calcular información de paginación
@@ -335,18 +321,29 @@ public class ExpenseController : ControllerBase
             };
             
             // Crear respuesta paginada
-            var paginatedResponse = new PaginatedResponseDto<IEnumerable<ExpenseDto>>(expenseDtos, paginationInfo);
+            var response = new ExpenseResponse
+            {
+                Success = true,
+                Status = "Success",
+                Message = "Gastos obtenidos correctamente",
+                Data = new
+                {
+                    Items = expenseDtos,
+                    Pagination = paginationInfo
+                }
+            };
             
-            // Envolver en ApiResponse
-            var response = new ExpenseResponse(paginatedResponse);
-            
-            _logger.LogInfo($"Controlador: Se obtuvieron {expenseDtos.Count()} gastos de un total de {totalCount}");
+            _logger.LogInfo($"Controlador: Se obtuvieron {expenseDtos.Count()} gastos paginados correctamente");
             return Ok(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Controlador: Error al obtener gastos paginados");
-            return StatusCode(500, new ExpenseResponse { Success = false, Status = "Error", Message = "Error interno del servidor" });
+            return StatusCode(500, new ExpenseResponse { 
+                Success = false, 
+                Status = "Error", 
+                Message = "Error interno del servidor" 
+            });
         }
     }
 }
