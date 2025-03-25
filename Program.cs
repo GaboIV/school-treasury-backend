@@ -43,6 +43,9 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Registrar el proveedor de logs de Hubble
+builder.Logging.AddHubbleLogging(LogLevel.Information);
+
 // Registrar servicios de autenticación
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();

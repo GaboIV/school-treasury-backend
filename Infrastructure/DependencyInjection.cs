@@ -29,6 +29,8 @@ namespace Infrastructure
                 options.DatabaseName = configuration["MongoDB:DatabaseName"];
                 options.ServiceName = configuration["Hubble:ServiceName"] ?? "MyAppService";
                 options.TimeZoneId = configuration["Hubble:TimeZoneId"];
+                options.CaptureLoggerMessages = true;
+                options.MinimumLogLevel = LogLevel.Information;
             });
             
             // Registrar MongoDbContext
