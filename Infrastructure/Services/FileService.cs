@@ -16,8 +16,9 @@ namespace Infrastructure.Services
         private readonly string _baseUrl;
         private readonly ILogger<FileService> _logger;
         private const int ThumbnailWidth = 150;
-        private const int ImageMaxWidth = 1200;
-        private const int CompressionQuality = 80;
+        private const int ImageMaxWidth = 1024;
+        private const int ImageMaxHeight = 1024;
+        private const int CompressionQuality = 70;
 
         public FileService(IWebHostEnvironment environment, IHttpContextAccessor httpContextAccessor, ILogger<FileService> logger = null)
         {
@@ -139,86 +140,335 @@ namespace Infrastructure.Services
 
         private async Task CompressAndResizeImage(Stream imageStream, string outputPath, int maxWidth, int quality)
         {
-            // Asegurarse de que el stream está en la posición correcta
-            imageStream.Position = 0;
-            
-            using (var original = SKBitmap.Decode(imageStream))
+            try
             {
-                if (original == null)
+                // Copiar todo el stream a memoria para evitar problemas con streams cerrados
+                byte[] imageData;
+                using (var memStream = new MemoryStream())
                 {
-                    throw new Exception("No se pudo decodificar la imagen");
-                }
-
-                // Calcular nuevo tamaño
-                var width = original.Width;
-                var height = original.Height;
-                
-                if (width > maxWidth)
-                {
-                    var ratio = (float)maxWidth / width;
-                    width = maxWidth;
-                    height = (int)(height * ratio);
+                    imageStream.Position = 0;
+                    await imageStream.CopyToAsync(memStream);
+                    imageData = memStream.ToArray();
                 }
                 
-                try
+                // Usar una nueva copia del stream para decodificar la imagen
+                using (var imageDataStream = new MemoryStream(imageData))
+                using (var original = SKBitmap.Decode(imageDataStream))
                 {
-                    using (var resized = original.Width == width && original.Height == height 
-                        ? original 
-                        : original.Resize(new SKImageInfo(width, height), SKFilterQuality.High))
+                    if (original == null)
                     {
-                        using (var image = SKImage.FromBitmap(resized))
-                        using (var encodedData = image.Encode(SKEncodedImageFormat.Jpeg, quality))
+                        throw new Exception("No se pudo decodificar la imagen");
+                    }
+
+                    try
+                    {
+                        // Extraer la orientación EXIF para corregir la rotación
+                        using (var exifStream = new MemoryStream(imageData))
+                        using (var codec = SKCodec.Create(exifStream))
                         {
-                            using (var fileStream = File.Create(outputPath))
+                            var orientation = codec?.EncodedOrigin ?? SKEncodedOrigin.Default;
+                            LogInfo($"Orientación EXIF detectada: {orientation}. Tamaño original: {original.Width}x{original.Height}");
+                            
+                            // Calcular nuevo tamaño respetando la relación de aspecto
+                            int width = original.Width;
+                            int height = original.Height;
+                            
+                            // Aplicar restricciones de tamaño máximo, manteniendo proporción
+                            float scaleRatio = 1.0f;
+                            
+                            // Si el ancho excede el máximo
+                            if (width > ImageMaxWidth)
                             {
-                                encodedData.SaveTo(fileStream);
-                                await fileStream.FlushAsync();
+                                float widthRatio = (float)ImageMaxWidth / width;
+                                scaleRatio = Math.Min(scaleRatio, widthRatio);
+                            }
+                            
+                            // Si el alto excede el máximo
+                            if (height > ImageMaxHeight)
+                            {
+                                float heightRatio = (float)ImageMaxHeight / height;
+                                scaleRatio = Math.Min(scaleRatio, heightRatio);
+                            }
+                            
+                            // Si necesitamos escalar
+                            if (scaleRatio < 1.0f)
+                            {
+                                width = (int)(width * scaleRatio);
+                                height = (int)(height * scaleRatio);
+                                LogInfo($"Imagen redimensionada a: {width}x{height} (ratio: {scaleRatio})");
+                            }
+                            else
+                            {
+                                LogInfo("No se necesita redimensionar la imagen");
+                            }
+                            
+                            // Verificar si necesitamos rotar basado en la orientación EXIF
+                            bool needsTransform = orientation != SKEncodedOrigin.Default && orientation != SKEncodedOrigin.TopLeft;
+                            
+                            // Redimensionar la imagen manteniendo la calidad
+                            using (var resized = original.Width == width && original.Height == height && !needsTransform
+                                ? original
+                                : original.Resize(new SKImageInfo(width, height), SKFilterQuality.High))
+                            {
+                                // Aplicar transformación basada en la orientación EXIF
+                                SKBitmap transformedBitmap = null;
+                                
+                                try
+                                {
+                                    if (needsTransform)
+                                    {
+                                        LogInfo($"Aplicando transformación para orientación: {orientation}");
+                                        transformedBitmap = ApplyOrientation(resized, orientation);
+                                    }
+                                    else
+                                    {
+                                        LogInfo("No se requiere transformación de orientación");
+                                        transformedBitmap = resized;
+                                    }
+                                    
+                                    LogInfo($"Codificando imagen con calidad: {quality}%. Tamaño: {transformedBitmap.Width}x{transformedBitmap.Height}");
+                                    using (var image = SKImage.FromBitmap(transformedBitmap))
+                                    using (var encodedData = image.Encode(SKEncodedImageFormat.Jpeg, quality))
+                                    {
+                                        LogInfo($"Guardando imagen en: {outputPath}. Tamaño: {encodedData.Size} bytes");
+                                        using (var fileStream = File.Create(outputPath))
+                                        {
+                                            encodedData.SaveTo(fileStream);
+                                            await fileStream.FlushAsync();
+                                        }
+                                    }
+                                }
+                                finally
+                                {
+                                    // Liberar recursos si creamos un nuevo bitmap
+                                    if (transformedBitmap != null && transformedBitmap != resized && transformedBitmap != original)
+                                    {
+                                        transformedBitmap.Dispose();
+                                    }
+                                }
                             }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        throw new Exception($"Error al redimensionar o guardar la imagen: {ex.Message}", ex);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    throw new Exception($"Error al redimensionar o guardar la imagen: {ex.Message}", ex);
-                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error al procesar la imagen: {ex.Message}", ex);
             }
         }
 
         private async Task CreateThumbnail(Stream imageStream, string outputPath, int width, int quality)
         {
-            // Asegurarse de que el stream está en la posición correcta
-            imageStream.Position = 0;
-            
-            using (var original = SKBitmap.Decode(imageStream))
+            try
             {
-                if (original == null)
+                // Copiar todo el stream a memoria para evitar problemas con streams cerrados
+                byte[] imageData;
+                using (var memStream = new MemoryStream())
                 {
-                    throw new Exception("No se pudo decodificar la imagen para la miniatura");
+                    imageStream.Position = 0;
+                    await imageStream.CopyToAsync(memStream);
+                    imageData = memStream.ToArray();
                 }
-                
-                try
+
+                // Usar una nueva copia del stream para decodificar la imagen
+                using (var imageDataStream = new MemoryStream(imageData))
+                using (var original = SKBitmap.Decode(imageDataStream))
                 {
-                    // Calcular la altura proporcional
-                    var ratio = (float)width / original.Width;
-                    var height = (int)(original.Height * ratio);
-                    
-                    using (var resized = original.Resize(new SKImageInfo(width, height), SKFilterQuality.High))
+                    if (original == null)
                     {
-                        using (var image = SKImage.FromBitmap(resized))
-                        using (var encodedData = image.Encode(SKEncodedImageFormat.Jpeg, quality))
+                        throw new Exception("No se pudo decodificar la imagen para la miniatura");
+                    }
+                    
+                    try
+                    {
+                        // Extraer la orientación EXIF para corregir la rotación
+                        using (var exifStream = new MemoryStream(imageData))
+                        using (var codec = SKCodec.Create(exifStream))
                         {
-                            using (var fileStream = File.Create(outputPath))
+                            var orientation = codec?.EncodedOrigin ?? SKEncodedOrigin.Default;
+                            LogInfo($"Miniatura - Orientación EXIF detectada: {orientation}. Tamaño original: {original.Width}x{original.Height}");
+                            
+                            // Calcular nueva dimensión conservando proporción
+                            int thumbWidth, thumbHeight;
+                            float aspectRatio = (float)original.Width / original.Height;
+                            LogInfo($"Miniatura - Relación de aspecto: {aspectRatio}");
+                            
+                            // Si es una imagen horizontal
+                            if (original.Width >= original.Height)
                             {
-                                encodedData.SaveTo(fileStream);
-                                await fileStream.FlushAsync();
+                                thumbWidth = width;
+                                thumbHeight = (int)(width / aspectRatio);
+                                LogInfo($"Miniatura - Imagen horizontal redimensionada a: {thumbWidth}x{thumbHeight}");
+                            }
+                            // Si es una imagen vertical
+                            else
+                            {
+                                thumbHeight = width;
+                                thumbWidth = (int)(width * aspectRatio);
+                                LogInfo($"Miniatura - Imagen vertical redimensionada a: {thumbWidth}x{thumbHeight}");
+                            }
+                            
+                            // Verificar si necesitamos rotar basado en la orientación EXIF
+                            bool needsTransform = orientation != SKEncodedOrigin.Default && orientation != SKEncodedOrigin.TopLeft;
+                            
+                            using (var resized = original.Resize(new SKImageInfo(thumbWidth, thumbHeight), SKFilterQuality.High))
+                            {
+                                // Aplicar transformación basada en la orientación EXIF
+                                SKBitmap transformedBitmap = null;
+                                
+                                try
+                                {
+                                    if (needsTransform)
+                                    {
+                                        LogInfo($"Miniatura - Aplicando transformación para orientación: {orientation}");
+                                        transformedBitmap = ApplyOrientation(resized, orientation);
+                                    }
+                                    else
+                                    {
+                                        LogInfo("Miniatura - No se requiere transformación de orientación");
+                                        transformedBitmap = resized;
+                                    }
+                                    
+                                    LogInfo($"Miniatura - Codificando imagen con calidad: {quality}%. Tamaño: {transformedBitmap.Width}x{transformedBitmap.Height}");
+                                    using (var image = SKImage.FromBitmap(transformedBitmap))
+                                    using (var encodedData = image.Encode(SKEncodedImageFormat.Jpeg, quality))
+                                    {
+                                        LogInfo($"Miniatura - Guardando en: {outputPath}. Tamaño: {encodedData.Size} bytes");
+                                        using (var fileStream = File.Create(outputPath))
+                                        {
+                                            encodedData.SaveTo(fileStream);
+                                            await fileStream.FlushAsync();
+                                        }
+                                    }
+                                }
+                                finally
+                                {
+                                    // Liberar recursos si creamos un nuevo bitmap
+                                    if (transformedBitmap != null && transformedBitmap != resized && transformedBitmap != original)
+                                    {
+                                        transformedBitmap.Dispose();
+                                    }
+                                }
                             }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        throw new Exception($"Error al crear la miniatura: {ex.Message}", ex);
+                    }
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error al procesar la miniatura: {ex.Message}", ex);
+            }
+        }
+
+        // Método auxiliar para aplicar la orientación EXIF
+        private SKBitmap ApplyOrientation(SKBitmap bitmap, SKEncodedOrigin origin)
+        {
+            LogInfo($"Aplicando orientación EXIF: {origin}");
+            
+            if (origin == SKEncodedOrigin.Default || origin == SKEncodedOrigin.TopLeft)
+            {
+                // No rotation needed for Default/TopLeft
+                return bitmap;
+            }
+            
+            SKBitmap rotated = null;
+            
+            try
+            {
+                switch (origin)
                 {
-                    throw new Exception($"Error al crear la miniatura: {ex.Message}", ex);
+                    case SKEncodedOrigin.TopRight: // Mirror horizontal
+                        rotated = new SKBitmap(bitmap.Width, bitmap.Height);
+                        using (var canvas = new SKCanvas(rotated))
+                        {
+                            canvas.Scale(-1, 1);
+                            canvas.Translate(-bitmap.Width, 0);
+                            canvas.DrawBitmap(bitmap, 0, 0);
+                        }
+                        break;
+                        
+                    case SKEncodedOrigin.BottomRight: // Rotate 180
+                        rotated = new SKBitmap(bitmap.Width, bitmap.Height);
+                        using (var canvas = new SKCanvas(rotated))
+                        {
+                            canvas.RotateDegrees(180, bitmap.Width / 2, bitmap.Height / 2);
+                            canvas.DrawBitmap(bitmap, 0, 0);
+                        }
+                        break;
+                        
+                    case SKEncodedOrigin.BottomLeft: // Mirror vertical
+                        rotated = new SKBitmap(bitmap.Width, bitmap.Height);
+                        using (var canvas = new SKCanvas(rotated))
+                        {
+                            canvas.Scale(1, -1);
+                            canvas.Translate(0, -bitmap.Height);
+                            canvas.DrawBitmap(bitmap, 0, 0);
+                        }
+                        break;
+                        
+                    case SKEncodedOrigin.LeftTop: // Rotate 90 + mirror horizontal
+                        rotated = new SKBitmap(bitmap.Height, bitmap.Width);
+                        using (var canvas = new SKCanvas(rotated))
+                        {
+                            canvas.Translate(rotated.Width, 0);
+                            canvas.Scale(-1, 1);
+                            canvas.RotateDegrees(90);
+                            canvas.DrawBitmap(bitmap, 0, 0);
+                        }
+                        break;
+                        
+                    case SKEncodedOrigin.RightTop: // Rotate 90
+                        rotated = new SKBitmap(bitmap.Height, bitmap.Width);
+                        using (var canvas = new SKCanvas(rotated))
+                        {
+                            canvas.Translate(rotated.Width, 0);
+                            canvas.RotateDegrees(90);
+                            canvas.DrawBitmap(bitmap, 0, 0);
+                        }
+                        break;
+                        
+                    case SKEncodedOrigin.RightBottom: // Mirror horizontal + rotate 90
+                        rotated = new SKBitmap(bitmap.Height, bitmap.Width);
+                        using (var canvas = new SKCanvas(rotated))
+                        {
+                            canvas.Scale(-1, 1);
+                            canvas.Translate(-rotated.Width, 0);
+                            canvas.Translate(0, rotated.Height);
+                            canvas.RotateDegrees(-90);
+                            canvas.DrawBitmap(bitmap, 0, 0);
+                        }
+                        break;
+                        
+                    case SKEncodedOrigin.LeftBottom: // Rotate 270
+                        rotated = new SKBitmap(bitmap.Height, bitmap.Width);
+                        using (var canvas = new SKCanvas(rotated))
+                        {
+                            canvas.Translate(0, rotated.Height);
+                            canvas.RotateDegrees(-90);
+                            canvas.DrawBitmap(bitmap, 0, 0);
+                        }
+                        break;
+                        
+                    default:
+                        return bitmap;
                 }
+                
+                LogInfo($"Orientación aplicada correctamente: {origin}. Tamaño original: {bitmap.Width}x{bitmap.Height}, Nuevo: {rotated.Width}x{rotated.Height}");
+                return rotated;
+            }
+            catch (Exception ex)
+            {
+                LogError($"Error al aplicar orientación {origin}: {ex.Message}");
+                // Si falla, devolver el bitmap original sin rotar
+                return bitmap;
             }
         }
 
