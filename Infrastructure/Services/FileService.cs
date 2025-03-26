@@ -525,8 +525,10 @@ namespace Infrastructure.Services
             if (string.IsNullOrEmpty(imagePath))
                 return string.Empty;
 
-            // Si ya es una URL completa, devolverla tal cual
-            if (imagePath.StartsWith("http://") || imagePath.StartsWith("https://"))
+            // Si ya es una URL completa, convertirla a https si es necesario
+            if (imagePath.StartsWith("http://"))
+                return imagePath.Replace("http://", "https://");
+            if (imagePath.StartsWith("https://"))
                 return imagePath;
             
             // Verificar si tenemos un nombre de archivo sin ruta
@@ -557,7 +559,7 @@ namespace Infrastructure.Services
             }
 
             LogInfo($"URL generada para {imagePath}: {_baseUrl}{imagePath}");
-            return $"{_baseUrl}{imagePath}";
+            return $"{_baseUrl.Replace("http://", "https://")}{imagePath}";
         }
 
         public string GetThumbnailUrl(string imagePath)
