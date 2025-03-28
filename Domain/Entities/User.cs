@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Domain.Enums;
 
 namespace Domain.Entities
@@ -14,10 +15,12 @@ namespace Domain.Entities
         public bool IsActive { get; set; } = true;
         public DateTime LastLogin { get; set; }
         public bool HasChangedPassword { get; set; } = false;
+        public List<string> FcmTokens { get; set; } = new List<string>();
         
         public User()
         {
             // Constructor vacío para MongoDB
+            FcmTokens = new List<string>();
         }
         
         public User(string username, string passwordHash, string email, string fullName, UserRole role)
@@ -29,6 +32,7 @@ namespace Domain.Entities
             Role = role;
             LastLogin = DateTime.UtcNow;
             HasChangedPassword = false;
+            FcmTokens = new List<string>();
         }
     }
-} 
+}

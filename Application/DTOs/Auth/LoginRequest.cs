@@ -9,5 +9,7 @@ namespace Application.DTOs.Auth
         
         [Required(ErrorMessage = "La contraseña es obligatoria")]
         public string Password { get; set; }
+        
+        public string FcmToken { get; set; }
     }
-} 
+}
