@@ -21,6 +21,7 @@ namespace Application.Services
         private readonly IMapper _mapper;
         private readonly IFileService _fileService;
         private readonly IPettyCashService _pettyCashService;
+        private readonly INotificationService _notificationService;
 
         /// <summary>
         /// Constructor
@@ -30,18 +31,21 @@ namespace Application.Services
         /// <param name="mapper">Servicio de mapeo</param>
         /// <param name="fileService">Servicio de archivos</param>
         /// <param name="pettyCashService">Servicio de caja chica</param>
+        /// <param name="notificationService">Servicio de notificaciones</param>
         public ExpenseService(
             IExpenseRepository expenseRepository,
             ILoggerManager logger,
             IMapper mapper,
             IFileService fileService,
-            IPettyCashService pettyCashService)
+            IPettyCashService pettyCashService,
+            INotificationService notificationService)
         {
             _expenseRepository = expenseRepository;
             _logger = logger;
             _mapper = mapper;
             _fileService = fileService;
             _pettyCashService = pettyCashService;
+            _notificationService = notificationService;
         }
 
         /// <summary>
@@ -121,6 +125,9 @@ namespace Application.Services
             
             // Registrar el gasto en la caja chica
             await RegisterExpenseInPettyCash(result);
+            
+            // Enviar notificación a los representantes del nuevo gasto
+            await SendNewExpenseNotificationAsync(result);
             
             return result;
         }
@@ -399,6 +406,65 @@ namespace Application.Services
             {
                 _logger.LogError($"Servicio: Error al registrar eliminación de gasto en caja chica: {ex.Message}");
                 // No lanzamos la excepción para no interrumpir el flujo principal
+            }
+        }
+
+        /// <summary>
+        /// Envía notificación a los representantes sobre un nuevo gasto
+        /// </summary>
+        /// <param name="expense">Gasto a notificar</param>
+        private async Task SendNewExpenseNotificationAsync(Expense expense)
+        {
+            try
+            {
+                _logger.LogInfo($"Servicio: Enviando notificación de nuevo gasto: {expense.Name}");
+                
+                // Preparar los datos para la notificación
+                object notificationData;
+                
+                // Si hay imágenes, incluir la primera en la notificación (boleta)
+                if (expense.Images != null && expense.Images.Any())
+                {
+                    // Obtener la URL de la primera imagen
+                    string imageUrl = expense.Images.First().Url;
+                    
+                    _logger.LogInfo($"Servicio: Incluyendo imagen en la notificación: {imageUrl}");
+                    
+                    notificationData = new
+                    {
+                        ExpenseId = expense.Id,
+                        ExpenseName = expense.Name,
+                        Description = expense.Description,
+                        Amount = expense.Amount,
+                        Date = expense.Date,
+                        ImageUrl = imageUrl
+                    };
+                }
+                else
+                {
+                    notificationData = new
+                    {
+                        ExpenseId = expense.Id,
+                        ExpenseName = expense.Name,
+                        Description = expense.Description,
+                        Amount = expense.Amount,
+                        Date = expense.Date
+                    };
+                }
+                
+                // Enviar notificación a todos los representantes
+                var title = "Nuevo gasto registrado";
+                var body = $"Se ha registrado un nuevo gasto: {expense.Name} por S/ {expense.Amount:N2}";
+                
+                // Enviar la notificación al tema de representantes
+                await _notificationService.SendNotificationAsync("Representative", title, body, notificationData);
+                
+                _logger.LogInfo($"Servicio: Notificación de nuevo gasto enviada exitosamente para: {expense.Name}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Servicio: Error al enviar notificación de nuevo gasto: {ex.Message}");
+                // No propagar la excepción para no interrumpir el flujo principal
             }
         }
     }

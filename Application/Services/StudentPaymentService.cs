@@ -15,6 +15,7 @@ namespace Application.Services
         private readonly IPettyCashService _pettyCashService;
         private readonly Tracer _tracer;
         private readonly ILogger<StudentPaymentService> _logger;
+        private readonly INotificationService _notificationService;
         private static readonly ActivitySource _activitySource = new("SchoolTreasure.PaymentService");
 
         public StudentPaymentService(
@@ -23,6 +24,7 @@ namespace Application.Services
             ICollectionRepository collectionRepository,
             IFileService fileService,
             IPettyCashService pettyCashService,
+            INotificationService notificationService,
             ILogger<StudentPaymentService> logger)
         {
             _paymentRepository = paymentRepository;
@@ -30,6 +32,7 @@ namespace Application.Services
             _collectionRepository = collectionRepository;
             _fileService = fileService;
             _pettyCashService = pettyCashService;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
@@ -146,7 +149,16 @@ namespace Application.Services
                     }
                     
                     await _paymentRepository.UpdateAsync(existingPayment);
-                    return await EnrichPaymentWithDetails(existingPayment);
+                    
+                    var updatedPayment = await EnrichPaymentWithDetails(existingPayment);
+                    
+                    // Enviar notificación si el pago anterior era 0 (primer pago)
+                    if (previousAmount == 0 && dto.AmountPaid > 0)
+                    {
+                        await SendPaymentNotification(updatedPayment, student.Name, collection.Name);
+                    }
+                    
+                    return updatedPayment;
                 }
 
                 _logger.LogInformation("Creando nuevo pago para estudiante {StudentId}", dto.StudentId);
@@ -204,7 +216,15 @@ namespace Application.Services
                 // Actualizar el avance del gasto
                 await UpdateCollectionAdvance(collection.Id);
                 
-                return await EnrichPaymentWithDetails(payment);
+                var result = await EnrichPaymentWithDetails(payment);
+                
+                // Enviar notificación si el monto es mayor a 0
+                if (dto.AmountPaid > 0)
+                {
+                    await SendPaymentNotification(result, student.Name, collection.Name);
+                }
+                
+                return result;
             }
             catch (Exception ex)
             {
@@ -547,12 +567,16 @@ namespace Application.Services
                     payment.AmountPaid,
                     $"Registro de pago para {collection?.Name} - Estudiante: {studentName}"
                 );
+                
+                // Enviar notificación del nuevo pago
+                var enrichedPayment = await EnrichPaymentWithDetails(payment);
+                await SendPaymentNotification(enrichedPayment, studentName, collection?.Name ?? "Desconocido");
             }
             
             // Retornar el DTO enriquecido
-            var enrichedPayment = await EnrichPaymentWithDetails(payment);
+            var result = await EnrichPaymentWithDetails(payment);
             _logger.LogInformation("Service: Pago registrado exitosamente para PaymentId: {PaymentId}", payment.Id);
-            return enrichedPayment;
+            return result;
         }
 
         private async Task<IEnumerable<StudentPaymentDto>> EnrichPaymentsWithDetails(IEnumerable<StudentPayment> payments)
@@ -658,6 +682,60 @@ namespace Application.Services
             {
                 _logger.LogError(ex, "Error al actualizar avance de colección {CollectionId}", collectionId);
                 throw;
+            }
+        }
+
+        // Método privado para enviar notificaciones de pago
+        private async Task SendPaymentNotification(StudentPaymentDto payment, string studentName, string collectionName)
+        {
+            try
+            {
+                _logger.LogInformation("Enviando notificación de nuevo pago para {StudentName} en {CollectionName}", studentName, collectionName);
+                
+                // Datos adicionales para la notificación
+                object notificationData;
+                
+                // Si hay imágenes, incluir la primera en los datos de la notificación
+                if (payment.Images != null && payment.Images.Count > 0)
+                {
+                    notificationData = new 
+                    {
+                        PaymentId = payment.Id,
+                        StudentId = payment.StudentId,
+                        StudentName = studentName,
+                        CollectionId = payment.CollectionId,
+                        CollectionName = collectionName,
+                        Amount = payment.AmountPaid,
+                        Status = payment.PaymentStatus.ToString(),
+                        ImageUrl = payment.Images[0]
+                    };
+                }
+                else
+                {
+                    notificationData = new
+                    {
+                        PaymentId = payment.Id,
+                        StudentId = payment.StudentId,
+                        StudentName = studentName,
+                        CollectionId = payment.CollectionId,
+                        CollectionName = collectionName,
+                        Amount = payment.AmountPaid,
+                        Status = payment.PaymentStatus.ToString()
+                    };
+                }
+                
+                // Enviar notificación a todos los administradores
+                var title = "Nuevo pago registrado";
+                var body = $"Se ha registrado un pago de {studentName} para {collectionName}";
+                
+                await _notificationService.SendNotificationAsync("Admin", title, body, notificationData);
+                
+                _logger.LogInformation("Notificación de pago enviada exitosamente");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al enviar notificación de pago: {Message}", ex.Message);
+                // No propagar la excepción para no interrumpir el flujo principal
             }
         }
     }
