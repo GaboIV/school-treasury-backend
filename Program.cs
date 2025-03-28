@@ -113,8 +113,6 @@ builder.Services.AddSwaggerGen();
 //         });
 //     });
 
-builder.Configuration.AddEnvironmentVariables();
-
 var app = builder.Build();
 
 // Ejecutar seeders
