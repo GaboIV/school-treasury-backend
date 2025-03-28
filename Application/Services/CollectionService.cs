@@ -15,19 +15,25 @@ namespace Application.Services {
         private readonly IPettyCashService _pettyCashService;
         private readonly ILoggerManager _logger;
         private readonly IStudentRepository _studentRepository;
+        private readonly ICollectionTypeRepository _collectionTypeRepository;
+        private readonly INotificationService _notificationService;
 
         public CollectionService(
             ICollectionRepository collectionRepository,
             IStudentPaymentRepository studentPaymentRepository,
             IPettyCashService pettyCashService,
             ILoggerManager logger,
-            IStudentRepository studentRepository)
+            IStudentRepository studentRepository,
+            ICollectionTypeRepository collectionTypeRepository,
+            INotificationService notificationService)
         {
             _collectionRepository = collectionRepository;
             _studentPaymentRepository = studentPaymentRepository;
             _pettyCashService = pettyCashService;
             _logger = logger;
             _studentRepository = studentRepository;
+            _collectionTypeRepository = collectionTypeRepository;
+            _notificationService = notificationService;
         }
 
         public async Task<IEnumerable<Collection>> GetAllCollectionsAsync()
@@ -98,6 +104,9 @@ namespace Application.Services {
 
             // Ya no registramos el gasto en la caja chica
             // Los gastos no afectan la caja chica, solo los pagos de estudiantes
+            
+            // Enviar notificación a los representantes sobre el nuevo cobro
+            await SendNewCollectionNotificationAsync(collection);
             
             return collection;
         }
@@ -327,6 +336,43 @@ namespace Application.Services {
             _logger.LogInfo($"Cobro con ID: {id} actualizado correctamente con el nuevo monto ajustado");
 
             return collection;
+        }
+
+        private async Task SendNewCollectionNotificationAsync(Collection collection)
+        {
+            try
+            {
+                _logger.LogInfo($"Enviando notificación de nuevo cobro: {collection.Name}");
+                
+                // Obtener el tipo de cobro para incluir en la notificación
+                var collectionType = await _collectionTypeRepository.GetByIdAsync(collection.CollectionTypeId);
+                string typeName = collectionType?.Name ?? "Desconocido";
+                
+                // Preparar los datos para la notificación
+                var notificationData = new
+                {
+                    CollectionId = collection.Id,
+                    CollectionName = collection.Name,
+                    CollectionType = typeName,
+                    TotalAmount = collection.TotalAmount,
+                    IndividualAmount = collection.IndividualAmount,
+                    Date = collection.Date
+                };
+                
+                // Enviar notificación a todos los representantes
+                var title = "Nuevo cobro registrado";
+                var body = $"Se ha registrado un nuevo cobro: {collection.Name} - {typeName}, monto por estudiante: S/ {collection.IndividualAmount:N2}";
+                
+                // Enviar la notificación al tema de representantes
+                await _notificationService.SendNotificationAsync("Representative", title, body, notificationData);
+                
+                _logger.LogInfo($"Notificación de nuevo cobro enviada exitosamente para el cobro: {collection.Name}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error al enviar notificación de nuevo cobro: {ex.Message}");
+                // No propagar la excepción para no interrumpir el flujo principal
+            }
         }
     }
 }

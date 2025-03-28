@@ -54,6 +54,7 @@ namespace Application.Services
             {
                 _logger.LogInformation("Adding FCM token to user {UserId}", user.Id);
                 await _notificationService.AddTokenAsync(user.Id, request.FcmToken);
+                // await _notificationService.SendNotificationToUserAsync(user.Id, "Bienvenido a SchoolTreasure", "Bienvenido a SchoolTreasure");
             }
 
             // Generar token JWT

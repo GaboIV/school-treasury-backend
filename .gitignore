@@ -30,3 +30,6 @@ wwwroot/*
 
 # No subir lo que está dentro de uploads
 uploads/*
+
+# Google services
+google-services.json
