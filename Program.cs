@@ -12,6 +12,7 @@ using API.Extensions;
 using Application.Interfaces;
 using Application.Services;
 using Infrastructure.Repositories;
+using Infrastructure.Services;
 using Gabonet.Hubble.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,6 +50,7 @@ builder.Logging.AddHubbleLogging(LogLevel.Information);
 // Registrar servicios de autenticación
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<INotificationService, FirebaseNotificationService>();
 
 // Configuración de JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -110,6 +112,8 @@ builder.Services.AddSwaggerGen();
 //             options.Protocol = OtlpExportProtocol.HttpProtobuf;
 //         });
 //     });
+
+builder.Configuration.AddEnvironmentVariables();
 
 var app = builder.Build();
 

@@ -12,10 +12,12 @@ namespace API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly INotificationService _notificationService;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, INotificationService notificationService)
         {
             _authService = authService;
+            _notificationService = notificationService;
         }
 
         [HttpPost("login")]
@@ -61,6 +63,44 @@ namespace API.Controllers
                 FullName = User.FindFirst("FullName")?.Value,
                 StudentId = studentId
             });
+        }
+
+        [HttpPost("fcm-token")]
+        [Authorize]
+        public async Task<IActionResult> AddFcmToken([FromBody] FcmTokenRequest request)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _authService.AddFcmTokenAsync(userId, request.Token);
+            if (!result)
+            {
+                return BadRequest(new { message = "No se pudo registrar el token FCM" });
+            }
+
+            return Ok(new { message = "Token FCM registrado exitosamente" });
+        }
+
+        [HttpDelete("fcm-token")]
+        [Authorize]
+        public async Task<IActionResult> RemoveFcmToken([FromBody] FcmTokenRequest request)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _authService.RemoveFcmTokenAsync(userId, request.Token);
+            if (!result)
+            {
+                return BadRequest(new { message = "No se pudo eliminar el token FCM" });
+            }
+
+            return Ok(new { message = "Token FCM eliminado exitosamente" });
         }
     }
 }

@@ -17,11 +17,19 @@ namespace Application.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IConfiguration _configuration;
+        private readonly INotificationService _notificationService;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IUserRepository userRepository, IConfiguration configuration)
+        public AuthService(
+            IUserRepository userRepository, 
+            IConfiguration configuration,
+            INotificationService notificationService,
+            ILogger<AuthService> logger)
         {
             _userRepository = userRepository;
             _configuration = configuration;
+            _notificationService = notificationService;
+            _logger = logger;
         }
 
         public async Task<LoginResponse> LoginAsync(LoginRequest request)
@@ -36,6 +44,17 @@ namespace Application.Services
             // Actualizar último login
             user.LastLogin = DateTime.UtcNow;
             await _userRepository.UpdateAsync(user);
+
+            _logger.LogInformation("User {Username} logged in", user.Username);
+
+            _logger.LogInformation("FCM token: {FcmToken}", request.FcmToken);
+
+            // Manejar FCM token si se proporciona
+            if (!string.IsNullOrEmpty(request.FcmToken))
+            {
+                _logger.LogInformation("Adding FCM token to user {UserId}", user.Id);
+                await _notificationService.AddTokenAsync(user.Id, request.FcmToken);
+            }
 
             // Generar token JWT
             var token = GenerateJwtToken(user);
@@ -109,6 +128,16 @@ namespace Application.Services
             await _userRepository.UpdateAsync(user);
             return true;
         }
+        
+        public async Task<bool> AddFcmTokenAsync(string userId, string fcmToken)
+        {
+            return await _notificationService.AddTokenAsync(userId, fcmToken);
+        }
+        
+        public async Task<bool> RemoveFcmTokenAsync(string userId, string fcmToken)
+        {
+            return await _notificationService.RemoveTokenAsync(userId, fcmToken);
+        }
 
         private string GenerateJwtToken(User user)
         {
@@ -150,4 +179,4 @@ namespace Application.Services
             return tokenHandler.WriteToken(token);
         }
     }
-} 
+}

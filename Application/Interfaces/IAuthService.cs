@@ -8,5 +8,7 @@ namespace Application.Interfaces
         Task<LoginResponse> LoginAsync(LoginRequest request);
         Task<bool> RegisterAsync(RegisterRequest request);
         Task<bool> ChangePasswordAsync(string userId, ChangePasswordRequest request);
+        Task<bool> AddFcmTokenAsync(string userId, string fcmToken);
+        Task<bool> RemoveFcmTokenAsync(string userId, string fcmToken);
     }
-} 
+}
