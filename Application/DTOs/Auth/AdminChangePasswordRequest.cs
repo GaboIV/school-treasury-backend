@@ -8,7 +8,7 @@ namespace Application.DTOs.Auth
         public string UserId { get; set; }
         
         [Required(ErrorMessage = "La nueva contraseña es obligatoria")]
-        [MinLength(6, ErrorMessage = "La contraseña debe tener al menos 6 caracteres")]
+        [MinLength(3, ErrorMessage = "La contraseña debe tener al menos 3 caracteres")]
         public string NewPassword { get; set; }
         
         [Required(ErrorMessage = "La confirmación de la contraseña es obligatoria")]
