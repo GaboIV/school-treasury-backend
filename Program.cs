@@ -14,6 +14,8 @@ using Application.Services;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
 using Gabonet.Hubble.Extensions;
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -102,7 +104,25 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo 
+    { 
+        Title = "School Treasury API", 
+        Version = "v1",
+        Description = "API para la administración de tesorería escolar"
+    });
+    
+    options.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
+    {
+        Description = "Autenticación JWT usando el esquema Bearer. Ejemplo: \"Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey
+    });
+    
+    options.OperationFilter<SecurityRequirementsOperationFilter>();
+});
 
 // builder.Services
 //     .AddOpenTelemetry()
@@ -127,7 +147,10 @@ await Infrastructure.ServiceCollectionExtensions.SeedDatabaseAsync(app.Services)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c => {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "School Treasury API V1");
+        c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
+    });
 }
 
 // Crear directorio wwwroot si no existe

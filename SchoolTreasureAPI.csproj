@@ -27,6 +27,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.116.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.116.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.3.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="8.0.2" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.6.0" />
   </ItemGroup>
 

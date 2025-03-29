@@ -130,6 +130,35 @@ namespace Application.Services
             return true;
         }
         
+        public async Task<bool> AdminChangePasswordAsync(string adminId, AdminChangePasswordRequest request)
+        {
+            // Verificar que quien hace la solicitud sea administrador
+            var admin = await _userRepository.GetByIdAsync(adminId);
+            if (admin == null || admin.Role != Domain.Enums.UserRole.Administrator)
+            {
+                _logger.LogWarning("Intento no autorizado de cambio de contraseña por administrador. ID: {AdminId}", adminId);
+                return false;
+            }
+            
+            // Obtener el usuario cuya contraseña se cambiará
+            var user = await _userRepository.GetByIdAsync(request.UserId);
+            if (user == null)
+            {
+                _logger.LogWarning("Intento de cambiar contraseña a usuario inexistente. ID: {UserId}", request.UserId);
+                return false;
+            }
+            
+            // Actualizar la contraseña
+            user.PasswordHash = BC.HashPassword(request.NewPassword);
+            
+            // Marcamos que la contraseña ha sido restablecida y el usuario debería cambiarla en su próximo inicio de sesión
+            user.HasChangedPassword = false;
+            
+            await _userRepository.UpdateAsync(user);
+            _logger.LogInformation("Administrador {AdminId} cambió la contraseña del usuario {UserId}", adminId, request.UserId);
+            return true;
+        }
+        
         public async Task<bool> AddFcmTokenAsync(string userId, string fcmToken)
         {
             return await _notificationService.AddTokenAsync(userId, fcmToken);
