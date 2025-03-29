@@ -162,5 +162,5 @@ if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
 }
 else
 {
-    app.Run("http://192.168.18.137:5200");
+    app.Run("http://192.168.18.16:5200");
 }

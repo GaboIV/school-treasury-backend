@@ -33,3 +33,6 @@ uploads/*
 
 # Google services
 google-services.json
+
+# Firebase credentials
+config/firebase-credentials.json

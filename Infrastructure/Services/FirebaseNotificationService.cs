@@ -31,7 +31,17 @@ namespace Infrastructure.Services
             {
                 try
                 {
-                    var credentialJson = configuration["Firebase:CredentialJson"];
+                    var credentialPath = configuration["Firebase:CredentialJson"];
+                    _logger.LogInformation("Ruta del archivo de credenciales Firebase: " + credentialPath);
+
+                    if (!File.Exists(credentialPath))
+                    {
+                        throw new FileNotFoundException($"El archivo de credenciales de Firebase no se encontró en {credentialPath}");
+                    }
+
+                    // Leer el contenido del archivo
+                    var credentialJson = File.ReadAllText(credentialPath);
+
                     FirebaseApp.Create(new AppOptions
                     {
                         Credential = GoogleCredential.FromJson(credentialJson)
