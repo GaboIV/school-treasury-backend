@@ -724,11 +724,11 @@ namespace Application.Services
                     };
                 }
                 
-                // Enviar notificación a todos los administradores
+                // Enviar notificación a todos
                 var title = "Nuevo pago registrado";
                 var body = $"Se ha registrado un pago de {studentName} para {collectionName}";
                 
-                await _notificationService.SendNotificationAsync("Admin", title, body, notificationData);
+                await _notificationService.SendNotificationAsync("General", title, body, notificationData);
                 
                 _logger.LogInformation("Notificación de pago enviada exitosamente");
             }
