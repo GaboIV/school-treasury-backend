@@ -12,5 +12,6 @@ namespace Application.Interfaces
         Task<TransactionDto> RegisterIncomeFromExcedentAsync(string paymentId, decimal amount, string description);
         Task<TransactionSummaryDto> GetSummaryAsync();
         Task<PaginatedTransactionDto> GetTransactionsAsync(int pageIndex = 0, int pageSize = 10);
+        Task<bool> RecalculateBalancesInTransactionsAsync();
     }
 } 

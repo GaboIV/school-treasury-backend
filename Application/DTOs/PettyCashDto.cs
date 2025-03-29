@@ -35,6 +35,10 @@ namespace Application.DTOs
         // Información adicional para el seguimiento
         public string? CreatedBy { get; set; }
         public string? Notes { get; set; }
+        
+        // Saldos de caja chica
+        public decimal PreviousBalance { get; set; }
+        public decimal NewBalance { get; set; }
     }
 
     public class CreateTransactionDto

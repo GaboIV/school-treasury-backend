@@ -68,7 +68,26 @@ namespace Application.Services
 
         public async Task<TransactionDto> AddTransactionAsync(CreateTransactionDto transactionDto)
         {
+            // Obtener el saldo actual de la caja chica antes de la transacción
+            var pettyCash = await _pettyCashRepository.GetAsync();
+            if (pettyCash == null)
+            {
+                pettyCash = new PettyCash();
+                await _pettyCashRepository.CreateAsync(pettyCash);
+            }
+            
+            decimal previousBalance = pettyCash.CurrentBalance;
+            
             var transaction = _mapper.Map<Transaction>(transactionDto);
+            
+            // Establecer los saldos
+            transaction.PreviousBalance = previousBalance;
+            
+            // Calcular el nuevo saldo según el tipo de transacción
+            if (transaction.Type == TransactionType.Income || transaction.Type == TransactionType.Collection)
+                transaction.NewBalance = previousBalance + transaction.Amount;
+            else // TransactionType.Expense
+                transaction.NewBalance = previousBalance - transaction.Amount;
             
             // Actualizar el balance en la caja chica
             await _pettyCashRepository.UpdateBalanceAsync(transaction.Amount, transaction.Type);
@@ -127,6 +146,16 @@ namespace Application.Services
         {
             try
             {
+                // Obtener el saldo actual de la caja chica antes de la transacción
+                var pettyCash = await _pettyCashRepository.GetAsync();
+                if (pettyCash == null)
+                {
+                    pettyCash = new PettyCash();
+                    await _pettyCashRepository.CreateAsync(pettyCash);
+                }
+                
+                decimal previousBalance = pettyCash.CurrentBalance;
+                
                 // Obtener información adicional si es un pago
                 string? studentId = null;
                 string? studentName = null;
@@ -164,7 +193,9 @@ namespace Application.Services
                     CollectionId = collectionId,
                     CollectionName = collectionName,
                     PaymentId = paymentId,
-                    PaymentStatus = paymentStatus
+                    PaymentStatus = paymentStatus,
+                    PreviousBalance = previousBalance,
+                    NewBalance = previousBalance - amount
                 };
 
                 // Actualizar el balance en la caja chica
@@ -186,6 +217,16 @@ namespace Application.Services
         {
             try
             {
+                // Obtener el saldo actual de la caja chica antes de la transacción
+                var pettyCash = await _pettyCashRepository.GetAsync();
+                if (pettyCash == null)
+                {
+                    pettyCash = new PettyCash();
+                    await _pettyCashRepository.CreateAsync(pettyCash);
+                }
+                
+                decimal previousBalance = pettyCash.CurrentBalance;
+                
                 // Obtener información del pago
                 var payment = await _studentPaymentRepository.GetByIdAsync(paymentId);
                 if (payment == null)
@@ -211,7 +252,9 @@ namespace Application.Services
                     CollectionId = payment.CollectionId,
                     CollectionName = collection?.Name,
                     PaymentId = payment.Id,
-                    PaymentStatus = payment.PaymentStatus.ToString()
+                    PaymentStatus = payment.PaymentStatus.ToString(),
+                    PreviousBalance = previousBalance,
+                    NewBalance = previousBalance + amount
                 };
 
                 // Actualizar el balance en la caja chica
@@ -251,6 +294,57 @@ namespace Application.Services
             {
                 _logger.LogError(ex, "Error al obtener transacciones paginadas");
                 throw;
+            }
+        }
+
+        public async Task<bool> RecalculateBalancesInTransactionsAsync()
+        {
+            try
+            {
+                // Obtener todas las transacciones ordenadas por fecha
+                var allTransactions = await _transactionRepository.GetAllOrderedByDateAsync();
+                
+                if (!allTransactions.Any())
+                {
+                    return true;
+                }
+                
+                decimal runningBalance = 0;
+                
+                foreach (var transaction in allTransactions)
+                {
+                    // Guardar el saldo anterior
+                    transaction.PreviousBalance = runningBalance;
+                    
+                    // Calcular el nuevo saldo según el tipo de transacción
+                    if (transaction.Type == TransactionType.Income || transaction.Type == TransactionType.Collection)
+                        runningBalance += transaction.Amount;
+                    else // TransactionType.Expense
+                        runningBalance -= transaction.Amount;
+                    
+                    // Actualizar el nuevo saldo
+                    transaction.NewBalance = runningBalance;
+                    
+                    // Guardar la transacción actualizada
+                    await _transactionRepository.UpdateAsync(transaction.Id, transaction);
+                }
+                
+                // Actualizar el saldo actual en la caja chica
+                var pettyCash = await _pettyCashRepository.GetAsync();
+                if (pettyCash == null)
+                {
+                    pettyCash = new PettyCash();
+                }
+                
+                pettyCash.CurrentBalance = runningBalance;
+                await _pettyCashRepository.UpdateAsync(pettyCash);
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al recalcular saldos en transacciones históricas");
+                return false;
             }
         }
     }
