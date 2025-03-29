@@ -31,14 +31,18 @@ namespace Infrastructure
                 options.TimeZoneId = configuration["Hubble:TimeZoneId"];
                 options.CaptureLoggerMessages = true;
                 options.MinimumLogLevel = LogLevel.Information;
+                options.EnableDiagnostics = true;
+                options.RequireAuthentication = true;
+                options.Username = configuration["Hubble:Username"] ?? "admin";
+                options.Password = configuration["Hubble:Password"] ?? "creativos2025";
             });
-            
+
             // Registrar MongoDbContext
             services.AddSingleton<MongoDbContext>(provider => {
                 var httpContextAccessor = provider.GetRequiredService<IHttpContextAccessor>();
                 return new MongoDbContext(connectionString, databaseName, httpContextAccessor);
             });
-            
+
             services.AddSingleton<IMongoClient>(sp => {
                 var mongoDbContext = sp.GetRequiredService<MongoDbContext>();
                 return mongoDbContext.GetMongoClient();

@@ -51,6 +51,11 @@ builder.Logging.AddHubbleLogging(LogLevel.Information);
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<INotificationService, FirebaseNotificationService>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<ICustomNotificationService, CustomNotificationService>();
+
+// Registrar el job para procesar notificaciones programadas
+builder.Services.AddHostedService<Infrastructure.Jobs.ProcessScheduledNotificationsJob>();
 
 // Configuración de JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");

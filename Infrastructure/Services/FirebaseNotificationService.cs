@@ -434,7 +434,7 @@ namespace Infrastructure.Services
             {
                 var message = new Message
                 {
-                    Notification = new Notification
+                    Notification = new FirebaseAdmin.Messaging.Notification
                     {
                         Title = title,
                         Body = body
@@ -520,7 +520,7 @@ namespace Infrastructure.Services
                         var message = new Message
                         {
                             Token = token,
-                            Notification = new Notification
+                            Notification = new FirebaseAdmin.Messaging.Notification
                             {
                                 Title = title,
                                 Body = body
