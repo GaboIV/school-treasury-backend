@@ -67,7 +67,8 @@ namespace Infrastructure.Repositories
                             Advance = collection.Advance,
                             Images = collection.Images,
                             Status = collection.Status,
-                            CollectionType = collectionType 
+                            CollectionType = collectionType,
+                            AllowsExemptions = collection.AllowsExemptions
                         };
 
             int totalCount = await query.CountAsync();

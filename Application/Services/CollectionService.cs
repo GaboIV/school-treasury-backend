@@ -40,6 +40,10 @@ namespace Application.Services {
         {
             _logger.LogInfo("Obteniendo todos los cobros");
             var collections = await _collectionRepository.GetAllAsync();
+            foreach (var collection in collections)
+            {
+                _logger.LogInfo($"Cobro encontrado: {collection.Name} con monto total: {collection.TotalAmount} permite exoneraciones: {collection.AllowsExemptions}");
+            }
             _logger.LogInfo($"Se obtuvieron {collections.Count()} cobros correctamente");
             return collections;
         }
