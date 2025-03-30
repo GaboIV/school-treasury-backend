@@ -16,5 +16,14 @@ namespace Domain.Entities
 
         [BsonElement("lastUpdated")]
         public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+
+        [BsonElement("balanceComment")]
+        public string BalanceComment { get; set; } = string.Empty;
+
+        [BsonElement("incomeComment")]
+        public string IncomeComment { get; set; } = string.Empty;
+
+        [BsonElement("expenseComment")]
+        public string ExpenseComment { get; set; } = string.Empty;
     }
 } 

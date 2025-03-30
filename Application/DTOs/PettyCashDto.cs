@@ -10,6 +10,9 @@ namespace Application.DTOs
         public decimal TotalIncome { get; set; }
         public decimal TotalExpense { get; set; }
         public DateTime LastUpdated { get; set; }
+        public string BalanceComment { get; set; } = string.Empty;
+        public string IncomeComment { get; set; } = string.Empty;
+        public string ExpenseComment { get; set; } = string.Empty;
     }
 
     public class TransactionDto
@@ -71,5 +74,12 @@ namespace Application.DTOs
         public decimal TotalExpense { get; set; }
         public DateTime? LastTransactionDate { get; set; }
         public List<TransactionDto> RecentTransactions { get; set; } = new List<TransactionDto>();
+    }
+
+    public class PettyCashCommentsDto
+    {
+        public string BalanceComment { get; set; } = string.Empty;
+        public string IncomeComment { get; set; } = string.Empty;
+        public string ExpenseComment { get; set; } = string.Empty;
     }
 } 
