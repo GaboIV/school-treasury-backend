@@ -10,6 +10,7 @@ namespace Application.Interfaces
         Task<TransactionDto> RegisterExpenseFromPaymentAsync(string entityId);
         Task<TransactionDto> RegisterExpenseFromPaymentAsync(string entityId, decimal amount, string description);
         Task<TransactionDto> RegisterIncomeFromExcedentAsync(string paymentId, decimal amount, string description);
+        Task<TransactionDto> RegisterExoneratedPaymentAsync(string paymentId, string description);
         Task<TransactionSummaryDto> GetSummaryAsync();
         Task<PaginatedTransactionDto> GetTransactionsAsync(int pageIndex = 0, int pageSize = 10);
         Task<bool> RecalculateBalancesInTransactionsAsync();

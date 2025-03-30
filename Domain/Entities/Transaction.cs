@@ -60,8 +60,9 @@ namespace Domain.Entities
 
     public enum TransactionType
     {
-        Income,    // Ingreso
-        Expense,   // Gasto
-        Collection // Cobro
+        Income,     // Ingreso
+        Expense,    // Gasto
+        Collection, // Cobro
+        Exonerated  // Exonerado
     }
 } 

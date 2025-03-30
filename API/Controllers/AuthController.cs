@@ -24,6 +24,13 @@ namespace API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
+            // Aplicar trim a username y password para eliminar espacios
+            if (request != null)
+            {
+                request.Username = request.Username?.Trim();
+                request.Password = request.Password?.Trim();
+            }
+            
             var response = await _authService.LoginAsync(request);
             
             if (response == null)
@@ -38,6 +45,16 @@ namespace API.Controllers
         [AuthorizeRoles(UserRole.Administrator)] // Solo los administradores pueden registrar nuevos usuarios
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
+            // Aplicar trim a los campos de texto para eliminar espacios
+            if (request != null)
+            {
+                request.Username = request.Username?.Trim();
+                request.Password = request.Password?.Trim();
+                request.Email = request.Email?.Trim();
+                request.FullName = request.FullName?.Trim();
+                request.StudentId = request.StudentId?.Trim();
+            }
+            
             var result = await _authService.RegisterAsync(request);
             
             if (!result)

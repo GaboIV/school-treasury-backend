@@ -18,5 +18,6 @@ namespace Application.Interfaces
         Task<IEnumerable<StudentPaymentDto>> CreatePaymentsForCollectionAsync(string collectionId, decimal individualAmount);
         Task UpdatePaymentsForCollectionAsync(string collectionId, decimal newIndividualAmount);
         Task<StudentPaymentDto> RegisterPaymentWithImagesAsync(RegisterPaymentWithImagesDto dto);
+        Task<StudentPaymentDto> ExoneratePaymentAsync(string id, ExoneratePaymentDto dto);
     }
 } 

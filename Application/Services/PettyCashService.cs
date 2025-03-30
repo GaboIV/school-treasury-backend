@@ -272,6 +272,65 @@ namespace Application.Services
             }
         }
 
+        public async Task<TransactionDto> RegisterExoneratedPaymentAsync(string paymentId, string description)
+        {
+            try
+            {
+                // Obtener el saldo actual de la caja chica antes de la transacción
+                var pettyCash = await _pettyCashRepository.GetAsync();
+                if (pettyCash == null)
+                {
+                    pettyCash = new PettyCash();
+                    await _pettyCashRepository.CreateAsync(pettyCash);
+                }
+                
+                decimal previousBalance = pettyCash.CurrentBalance;
+                
+                // Obtener información del pago
+                var payment = await _studentPaymentRepository.GetByIdAsync(paymentId);
+                if (payment == null)
+                {
+                    throw new KeyNotFoundException($"No se encontró el pago con ID {paymentId}");
+                }
+                
+                // Obtener información del estudiante
+                var student = await _studentRepository.GetByIdAsync(payment.StudentId);
+                
+                // Obtener información del gasto
+                var collection = await _collectionRepository.GetByIdAsync(payment.CollectionId);
+                
+                var transaction = new Transaction
+                {
+                    Type = TransactionType.Exonerated,
+                    Amount = 0, // Las exoneraciones no tienen monto
+                    Description = description,
+                    RelatedEntityId = paymentId,
+                    RelatedEntityType = "Payment",
+                    StudentId = payment.StudentId,
+                    StudentName = student?.Name,
+                    CollectionId = payment.CollectionId,
+                    CollectionName = collection?.Name,
+                    PaymentId = paymentId,
+                    PaymentStatus = payment.PaymentStatus.ToString(),
+                    PreviousBalance = previousBalance,
+                    NewBalance = previousBalance // No cambia el balance
+                };
+
+                // Actualizar el balance en la caja chica (no hay cambio, sólo registro)
+                await _pettyCashRepository.UpdateBalanceAsync(0, TransactionType.Exonerated);
+                
+                // Guardar la transacción en la colección separada
+                var addedTransaction = await _transactionRepository.CreateAsync(transaction);
+                
+                return _mapper.Map<TransactionDto>(addedTransaction);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error al registrar pago exonerado con ID {paymentId}");
+                throw;
+            }
+        }
+
         public async Task<PaginatedTransactionDto> GetTransactionsAsync(int pageIndex = 0, int pageSize = 10)
         {
             try

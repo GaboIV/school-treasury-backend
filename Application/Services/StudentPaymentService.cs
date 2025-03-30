@@ -579,6 +579,75 @@ namespace Application.Services
             return result;
         }
 
+        public async Task<StudentPaymentDto> ExoneratePaymentAsync(string id, ExoneratePaymentDto dto)
+        {
+            using var activity = _activitySource.StartActivity("ExoneratePayment");
+            var stopwatch = Stopwatch.StartNew();
+            
+            _logger.LogInformation("Service: Iniciando exoneración de pago para PaymentId: {PaymentId}", id);
+            
+            // Verificar que el pago existe
+            var payment = await _paymentRepository.GetByIdAsync(id);
+            if (payment == null)
+            {
+                _logger.LogWarning("Service: Pago con ID {PaymentId} no encontrado", id);
+                throw new KeyNotFoundException($"Pago con ID {id} no encontrado");
+            }
+            
+            _logger.LogInformation("Service: Pago encontrado con ID {PaymentId}", payment.Id);
+            
+            // Obtener el gasto para verificar si tiene un monto ajustado
+            var collection = await _collectionRepository.GetByIdAsync(payment.CollectionId);
+            _logger.LogInformation("Service: Cobro obtenido con ID {CollectionId}", payment.CollectionId);
+            
+            // Verificar si el cobro permite exoneraciones
+            if (collection == null || collection.AllowsExemptions != true)
+            {
+                _logger.LogWarning("Service: El cobro con ID {CollectionId} no permite exoneraciones", payment.CollectionId);
+                throw new InvalidOperationException($"El cobro con ID {payment.CollectionId} no permite exoneraciones");
+            }
+            
+            // Obtener el estudiante
+            var student = await _studentRepository.GetByIdAsync(payment.StudentId);
+            _logger.LogInformation("Service: Estudiante obtenido con ID {StudentId}", payment.StudentId);
+            
+            // Guardar las imágenes en la carpeta específica del pago
+            if (dto.Images != null && dto.Images.Count > 0)
+            {
+                _logger.LogInformation("Service: Guardando {Count} imágenes para el pago exonerado", dto.Images.Count);
+                var imagePaths = await _fileService.SaveImagesAsync(dto.Images, $"payments/{id}");
+                payment.Images.AddRange(imagePaths);
+            }
+            
+            // Actualizar el pago a exonerado
+            payment.PaymentStatus = PaymentStatus.Exonerated;
+            payment.AmountPaid = 0;
+            payment.Pending = 0; // Asegurarnos de que el monto pendiente sea 0
+            payment.Excedent = 0;
+            payment.PaymentDate = dto.PaymentDate ?? DateTime.UtcNow;
+            payment.Comment = $"PAGO EXONERADO: {dto.Comment}";
+            payment.UpdatedAt = DateTime.UtcNow;
+            
+            await _paymentRepository.UpdateAsync(payment);
+            _logger.LogInformation("Service: Pago actualizado como exonerado");
+            
+            // Actualizar el avance del gasto
+            await UpdateCollectionAdvance(payment.CollectionId);
+            
+            // Usar el servicio de caja chica para crear una transacción de tipo Exonerated
+            await _pettyCashService.RegisterExoneratedPaymentAsync(
+                payment.Id,
+                $"Pago exonerado para {collection?.Name} - Estudiante: {student?.Name ?? "Desconocido"} - {dto.Comment}"
+            );
+            
+            _logger.LogInformation("Service: Transacción de exoneración registrada");
+            
+            stopwatch.Stop();
+            _logger.LogInformation("Service: Exoneración de pago completada en {ElapsedMilliseconds}ms", stopwatch.ElapsedMilliseconds);
+            
+            return await EnrichPaymentWithDetails(payment);
+        }
+
         private async Task<IEnumerable<StudentPaymentDto>> EnrichPaymentsWithDetails(IEnumerable<StudentPayment> payments)
         {
             var result = new List<StudentPaymentDto>();
