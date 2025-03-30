@@ -61,10 +61,15 @@ namespace Infrastructure.Repositories
                 pettyCash.TotalExpense += amount;
                 pettyCash.CurrentBalance -= amount;
             }
-            else // TransactionType.Collection
+            else if (type == TransactionType.Collection)
             {
                 pettyCash.TotalExpense += amount;
                 pettyCash.CurrentBalance -= amount;
+            }
+            else if (type == TransactionType.Exonerated)
+            {
+                // Las transacciones de exoneración no afectan el balance de caja chica
+                // Solo se registran para llevar un historial
             }
 
             await UpdateAsync(pettyCash);

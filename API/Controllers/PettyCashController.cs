@@ -3,6 +3,7 @@ using Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API.Controllers
 {
@@ -109,6 +110,41 @@ namespace API.Controllers
                 return StatusCode(500, new ApiResponse<PaginatedTransactionDto>(
                     null,
                     $"Error al obtener las transacciones: {ex.Message}",
+                    false
+                ));
+            }
+        }
+        
+        [HttpPost("recalculate-balances")]
+        [Authorize(Roles = "Administrator")]
+        public async Task<ActionResult<ApiResponse<bool>>> RecalculateBalances()
+        {
+            try
+            {
+                var result = await _pettyCashService.RecalculateBalancesInTransactionsAsync();
+                
+                if (result)
+                {
+                    return Ok(new ApiResponse<bool>(
+                        true,
+                        "Saldos de transacciones recalculados correctamente",
+                        true
+                    ));
+                }
+                else
+                {
+                    return StatusCode(500, new ApiResponse<bool>(
+                        false,
+                        "Error al recalcular los saldos de transacciones",
+                        false
+                    ));
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<bool>(
+                    false,
+                    $"Error al recalcular los saldos: {ex.Message}",
                     false
                 ));
             }

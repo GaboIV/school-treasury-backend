@@ -51,6 +51,7 @@ namespace Domain.Entities
         Pending,
         PartiallyPaid,
         Paid,
-        Excedent
+        Excedent,
+        Exonerated
     }
 } 

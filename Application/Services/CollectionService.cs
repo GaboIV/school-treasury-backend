@@ -81,6 +81,7 @@ namespace Application.Services {
                 Date = dto.Date,
                 TotalAmount = dto.TotalAmount,
                 IndividualAmount = individualAmount,
+                AllowsExemptions = dto.AllowsExemptions,
                 Advance = new Advance(),
                 StudentQuantity = dto.StudentQuantity
             };
@@ -151,6 +152,7 @@ namespace Application.Services {
             existingCollection.IndividualAmount = individualAmount;
             existingCollection.StudentQuantity = dto.StudentQuantity;
             existingCollection.Status = dto.Status;
+            existingCollection.AllowsExemptions = dto.AllowsExemptions;
             existingCollection.UpdatedAt = DateTime.UtcNow;
 
             existingCollection.Advance.Total = totalStudents;

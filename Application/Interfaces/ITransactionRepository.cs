@@ -12,5 +12,7 @@ namespace Application.Interfaces
         Task<List<Transaction>> GetPaginatedAsync(int page, int pageSize);
         Task<List<Transaction>> GetByRelatedEntityAsync(string relatedEntityId, string relatedEntityType);
         Task<int> GetTotalCountAsync();
+        Task<List<Transaction>> GetAllOrderedByDateAsync();
+        Task<bool> UpdateAsync(string id, Transaction transaction);
     }
 } 

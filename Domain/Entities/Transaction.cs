@@ -49,12 +49,20 @@ namespace Domain.Entities
         
         [BsonElement("notes")]
         public string? Notes { get; set; }
+
+        // Saldos de caja chica
+        [BsonElement("previousBalance")]
+        public decimal PreviousBalance { get; set; }
+        
+        [BsonElement("newBalance")]
+        public decimal NewBalance { get; set; }
     }
 
     public enum TransactionType
     {
-        Income,    // Ingreso
-        Expense,   // Gasto
-        Collection // Cobro
+        Income,     // Ingreso
+        Expense,    // Gasto
+        Collection, // Cobro
+        Exonerated  // Exonerado
     }
 } 

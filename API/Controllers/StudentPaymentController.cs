@@ -181,5 +181,27 @@ namespace API.Controllers
                 return StatusCode(500, new ApiResponse<StudentPaymentDto>(null, $"Error al actualizar el pago: {ex.Message}", false));
             }
         }
+
+        [HttpPut("exonerate/{id}")]
+        public async Task<ActionResult<ApiResponse<StudentPaymentDto>>> ExoneratePayment(string id, [FromForm] ExoneratePaymentDto dto)
+        {
+            try
+            {
+                var result = await _paymentService.ExoneratePaymentAsync(id, dto);
+                return Ok(new ApiResponse<StudentPaymentDto>(result, "Pago exonerado exitosamente"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ApiResponse<StudentPaymentDto>(null, ex.Message, false));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new ApiResponse<StudentPaymentDto>(null, ex.Message, false));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<StudentPaymentDto>(null, $"Error al exonerar el pago: {ex.Message}", false));
+            }
+        }
     }
 }

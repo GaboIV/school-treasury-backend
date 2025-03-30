@@ -17,6 +17,7 @@ namespace Application.DTOs
         public decimal TotalPending { get; set; }
         public DateTime Date { get; set; }
         public decimal PercentagePaid { get; set; }
+        public bool AllowsExemptions { get; set; }
         public Advance Advance { get; set; } = new Advance();
         public string? StudentQuantity { get; set; }
         public List<Image>? Images { get; set; }

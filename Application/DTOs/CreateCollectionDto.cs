@@ -21,6 +21,8 @@ namespace Application.DTOs
 
         public bool? Status { get; set; }
 
+        public bool AllowsExemptions { get; set; } = false;
+
         public List<CreateImageDto>? Images { get; set; }
     }
 }

@@ -33,6 +33,9 @@ namespace Domain.Entities {
         [BsonElement("percetagePaid")]
         public decimal PercentagePaid { get; set; }
 
+        [BsonElement("allowsExemptions")]
+        public bool? AllowsExemptions { get; set; } = false;
+
         [BsonElement("advance")]
         public Advance Advance { get; set; } = new Advance();
 

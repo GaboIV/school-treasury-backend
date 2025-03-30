@@ -52,5 +52,19 @@ namespace Infrastructure.Repositories
         {
             return (int)await _collection.CountDocumentsAsync(_ => true);
         }
+        
+        public async Task<List<Transaction>> GetAllOrderedByDateAsync()
+        {
+            return await _collection.Find(_ => true)
+                .Sort(Builders<Transaction>.Sort.Ascending(t => t.Date))
+                .ToListAsync();
+        }
+        
+        public async Task<bool> UpdateAsync(string id, Transaction transaction)
+        {
+            transaction.UpdatedAt = DateTime.UtcNow;
+            var result = await _collection.ReplaceOneAsync(t => t.Id == id, transaction);
+            return result.IsAcknowledged && result.ModifiedCount > 0;
+        }
     }
 } 

@@ -1,6 +1,7 @@
 using Domain.Entities;
 using System;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Http;
 
 namespace Application.DTOs
 {
@@ -51,6 +52,13 @@ namespace Application.DTOs
         public List<string>? Images { get; set; }
         public string? Voucher { get; set; }
         public string? Comment { get; set; }
+        public DateTime? PaymentDate { get; set; }
+    }
+    
+    public class ExoneratePaymentDto
+    {
+        public string? Comment { get; set; }
+        public List<Microsoft.AspNetCore.Http.IFormFile> Images { get; set; } = new List<Microsoft.AspNetCore.Http.IFormFile>();
         public DateTime? PaymentDate { get; set; }
     }
 } 
