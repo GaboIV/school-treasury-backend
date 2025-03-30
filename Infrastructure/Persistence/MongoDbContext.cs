@@ -5,6 +5,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Events;
 using System;
+using SchoolTreasureAPI.Domain.Entities;
 
 namespace Infrastructure.Persistence
 {
@@ -66,5 +67,6 @@ namespace Infrastructure.Persistence
         public IMongoCollection<Transaction> Transactions => _database.GetCollection<Transaction>("Transactions");
         public IMongoCollection<InterestLink> InterestLinks => _database.GetCollection<InterestLink>("InterestLinks");
         public IMongoCollection<User> Users => _database.GetCollection<User>("Users");
+        public IMongoCollection<AppVersion> AppVersions => _database.GetCollection<AppVersion>("AppVersions");
     }
 } 

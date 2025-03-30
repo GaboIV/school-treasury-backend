@@ -16,6 +16,9 @@ using Infrastructure.Services;
 using Gabonet.Hubble.Extensions;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.Filters;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.IIS;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,7 +39,8 @@ builder.Services.AddCors(options =>
         builder => builder
             .AllowAnyOrigin()
             .AllowAnyMethod()
-            .AllowAnyHeader());
+            .AllowAnyHeader()
+            .WithExposedHeaders("Content-Disposition", "Content-Length"));
 });
 
 // Registrar HttpContextAccessor
@@ -122,6 +126,27 @@ builder.Services.AddSwaggerGen(options =>
     });
     
     options.OperationFilter<SecurityRequirementsOperationFilter>();
+    
+    // Configuración para archivos multipart/form-data
+    options.CustomSchemaIds(type => type.ToString());
+});
+
+// Configuración para permitir archivos grandes
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = int.MaxValue;
+});
+
+builder.Services.Configure<KestrelServerOptions>(options =>
+{
+    options.Limits.MaxRequestBodySize = int.MaxValue; // Para archivos grandes como APKs
+});
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartBodyLengthLimit = int.MaxValue; // Para archivos grandes
+    options.MultipartHeadersLengthLimit = int.MaxValue;
 });
 
 // builder.Services
@@ -165,6 +190,13 @@ var uploadsPath = Path.Combine(wwwrootPath, "uploads");
 if (!Directory.Exists(uploadsPath))
 {
     Directory.CreateDirectory(uploadsPath);
+}
+
+// Crear directorio apk si no existe
+var apkPath = Path.Combine(wwwrootPath, "apk");
+if (!Directory.Exists(apkPath))
+{
+    Directory.CreateDirectory(apkPath);
 }
 
 // Servir archivos estáticos
