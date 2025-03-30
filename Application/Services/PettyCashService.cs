@@ -406,5 +406,57 @@ namespace Application.Services
                 return false;
             }
         }
+
+        public async Task<PettyCashCommentsDto> GetPettyCashCommentsAsync()
+        {
+            try
+            {
+                var pettyCash = await _pettyCashRepository.GetAsync();
+                if (pettyCash == null)
+                {
+                    pettyCash = new PettyCash();
+                    await _pettyCashRepository.CreateAsync(pettyCash);
+                }
+
+                return new PettyCashCommentsDto
+                {
+                    BalanceComment = pettyCash.BalanceComment,
+                    IncomeComment = pettyCash.IncomeComment,
+                    ExpenseComment = pettyCash.ExpenseComment
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener los comentarios de caja chica");
+                throw;
+            }
+        }
+
+        public async Task<PettyCashCommentsDto> UpdatePettyCashCommentsAsync(PettyCashCommentsDto commentsDto)
+        {
+            try
+            {
+                var pettyCash = await _pettyCashRepository.GetAsync();
+                if (pettyCash == null)
+                {
+                    pettyCash = new PettyCash();
+                    await _pettyCashRepository.CreateAsync(pettyCash);
+                }
+
+                pettyCash.BalanceComment = commentsDto.BalanceComment;
+                pettyCash.IncomeComment = commentsDto.IncomeComment;
+                pettyCash.ExpenseComment = commentsDto.ExpenseComment;
+                pettyCash.LastUpdated = DateTime.UtcNow;
+
+                await _pettyCashRepository.UpdateAsync(pettyCash);
+
+                return commentsDto;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al actualizar los comentarios de caja chica");
+                throw;
+            }
+        }
     }
 } 

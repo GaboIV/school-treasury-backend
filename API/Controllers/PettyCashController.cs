@@ -149,5 +149,59 @@ namespace API.Controllers
                 ));
             }
         }
+
+        [HttpGet("comments")]
+        public async Task<ActionResult<ApiResponse<PettyCashCommentsDto>>> GetComments()
+        {
+            try
+            {
+                var comments = await _pettyCashService.GetPettyCashCommentsAsync();
+                return Ok(new ApiResponse<PettyCashCommentsDto>(
+                    comments,
+                    "Comentarios de caja chica obtenidos correctamente",
+                    true
+                ));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<PettyCashCommentsDto>(
+                    null,
+                    $"Error al obtener los comentarios de caja chica: {ex.Message}",
+                    false
+                ));
+            }
+        }
+
+        [HttpPut("comments")]
+        [Authorize(Roles = "Administrator")]
+        public async Task<ActionResult<ApiResponse<PettyCashCommentsDto>>> UpdateComments([FromBody] PettyCashCommentsDto commentsDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ApiResponse<PettyCashCommentsDto>(
+                    null,
+                    "Datos de comentarios inválidos",
+                    false
+                ));
+            }
+
+            try
+            {
+                var updatedComments = await _pettyCashService.UpdatePettyCashCommentsAsync(commentsDto);
+                return Ok(new ApiResponse<PettyCashCommentsDto>(
+                    updatedComments,
+                    "Comentarios de caja chica actualizados correctamente",
+                    true
+                ));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<PettyCashCommentsDto>(
+                    null,
+                    $"Error al actualizar los comentarios de caja chica: {ex.Message}",
+                    false
+                ));
+            }
+        }
     }
 } 

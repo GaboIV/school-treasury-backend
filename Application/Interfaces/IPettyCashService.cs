@@ -14,5 +14,7 @@ namespace Application.Interfaces
         Task<TransactionSummaryDto> GetSummaryAsync();
         Task<PaginatedTransactionDto> GetTransactionsAsync(int pageIndex = 0, int pageSize = 10);
         Task<bool> RecalculateBalancesInTransactionsAsync();
+        Task<PettyCashCommentsDto> GetPettyCashCommentsAsync();
+        Task<PettyCashCommentsDto> UpdatePettyCashCommentsAsync(PettyCashCommentsDto commentsDto);
     }
 } 
