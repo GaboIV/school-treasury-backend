@@ -68,5 +68,7 @@ namespace Infrastructure.Persistence
         public IMongoCollection<InterestLink> InterestLinks => _database.GetCollection<InterestLink>("InterestLinks");
         public IMongoCollection<User> Users => _database.GetCollection<User>("Users");
         public IMongoCollection<AppVersion> AppVersions => _database.GetCollection<AppVersion>("AppVersions");
+        public IMongoCollection<SchoolTreasureAPI.Domain.Entities.AppInfo> AppInfo => _database.GetCollection<SchoolTreasureAPI.Domain.Entities.AppInfo>("AppInfo");
+        public IMongoCollection<SchoolTreasureAPI.Domain.Entities.DownloadStat> DownloadStats => _database.GetCollection<SchoolTreasureAPI.Domain.Entities.DownloadStat>("DownloadStats");
     }
 } 

@@ -24,7 +24,7 @@ namespace Infrastructure.Services
         {
             _environment = environment;
             _logger = logger;
-            
+
             // Construir la URL base para las imágenes
             var request = httpContextAccessor.HttpContext?.Request;
             _baseUrl = $"{request?.Scheme}://{request?.Host}";
@@ -33,10 +33,10 @@ namespace Infrastructure.Services
         public async Task<List<string>> SaveImagesAsync(List<IFormFile> images, string folder, string itemId = null)
         {
             var savedPaths = new List<string>();
-            
+
             // Crear directorio base
             var basePath = Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", folder);
-            
+
             // Si hay un ID de elemento, crear una subcarpeta específica
             string itemFolder = string.Empty;
             if (!string.IsNullOrEmpty(itemId))
@@ -44,18 +44,18 @@ namespace Infrastructure.Services
                 itemFolder = itemId;
                 basePath = Path.Combine(basePath, itemFolder);
             }
-            
+
             // Crear directorio para imágenes originales
             var uploadPath = basePath;
             var thumbnailPath = Path.Combine(basePath, "thumbnails");
-            
+
             LogInfo($"Intentando crear directorio en {uploadPath}");
             if (!Directory.Exists(uploadPath))
             {
                 Directory.CreateDirectory(uploadPath);
                 LogInfo($"Directorio {uploadPath} creado con éxito.");
             }
-            
+
             if (!Directory.Exists(thumbnailPath))
             {
                 Directory.CreateDirectory(thumbnailPath);
@@ -74,9 +74,9 @@ namespace Infrastructure.Services
                         var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(image.FileName)}";
                         var originalFilePath = Path.Combine(uploadPath, fileName);
                         var thumbnailFilePath = Path.Combine(thumbnailPath, fileName);
-                        
+
                         LogInfo($"Procesando imagen: {fileName}");
-                        
+
                         // Leer la imagen completamente a memoria antes de procesarla
                         byte[] imageData;
                         using (var memStream = new MemoryStream())
@@ -84,7 +84,7 @@ namespace Infrastructure.Services
                             await image.CopyToAsync(memStream);
                             imageData = memStream.ToArray();
                         }
-                        
+
                         try
                         {
                             // Procesar la imagen para comprimir y redimensionar
@@ -93,7 +93,7 @@ namespace Infrastructure.Services
                                 await CompressAndResizeImage(imageStream, originalFilePath, ImageMaxWidth, CompressionQuality);
                                 LogInfo($"Imagen comprimida guardada en {originalFilePath}");
                             }
-                            
+
                             // Procesar la imagen para la miniatura usando una nueva copia
                             using (var thumbnailStream = new MemoryStream(imageData))
                             {
@@ -107,10 +107,10 @@ namespace Infrastructure.Services
                             LogError($"StackTrace: {ex.StackTrace}");
                             continue;
                         }
-                        
+
                         // Guardar ruta relativa según la estructura de carpetas
                         string relativePath;
-                        
+
                         if (!string.IsNullOrEmpty(itemFolder))
                         {
                             relativePath = $"/uploads/{folder}/{itemFolder}/{fileName}";
@@ -119,7 +119,7 @@ namespace Infrastructure.Services
                         {
                             relativePath = $"/uploads/{folder}/{fileName}";
                         }
-                        
+
                         savedPaths.Add(relativePath);
                         LogInfo($"Ruta relativa de la imagen: {relativePath}");
                     }
@@ -134,7 +134,7 @@ namespace Infrastructure.Services
                     LogInfo($"Imagen vacía, no se guardará.");
                 }
             }
-            
+
             return savedPaths;
         }
 
@@ -150,7 +150,7 @@ namespace Infrastructure.Services
                     await imageStream.CopyToAsync(memStream);
                     imageData = memStream.ToArray();
                 }
-                
+
                 // Usar una nueva copia del stream para decodificar la imagen
                 using (var imageDataStream = new MemoryStream(imageData))
                 using (var original = SKBitmap.Decode(imageDataStream))
@@ -168,28 +168,28 @@ namespace Infrastructure.Services
                         {
                             var orientation = codec?.EncodedOrigin ?? SKEncodedOrigin.Default;
                             LogInfo($"Orientación EXIF detectada: {orientation}. Tamaño original: {original.Width}x{original.Height}");
-                            
+
                             // Calcular nuevo tamaño respetando la relación de aspecto
                             int width = original.Width;
                             int height = original.Height;
-                            
+
                             // Aplicar restricciones de tamaño máximo, manteniendo proporción
                             float scaleRatio = 1.0f;
-                            
+
                             // Si el ancho excede el máximo
                             if (width > ImageMaxWidth)
                             {
                                 float widthRatio = (float)ImageMaxWidth / width;
                                 scaleRatio = Math.Min(scaleRatio, widthRatio);
                             }
-                            
+
                             // Si el alto excede el máximo
                             if (height > ImageMaxHeight)
                             {
                                 float heightRatio = (float)ImageMaxHeight / height;
                                 scaleRatio = Math.Min(scaleRatio, heightRatio);
                             }
-                            
+
                             // Si necesitamos escalar
                             if (scaleRatio < 1.0f)
                             {
@@ -201,10 +201,10 @@ namespace Infrastructure.Services
                             {
                                 LogInfo("No se necesita redimensionar la imagen");
                             }
-                            
+
                             // Verificar si necesitamos rotar basado en la orientación EXIF
                             bool needsTransform = orientation != SKEncodedOrigin.Default && orientation != SKEncodedOrigin.TopLeft;
-                            
+
                             // Redimensionar la imagen manteniendo la calidad
                             using (var resized = original.Width == width && original.Height == height && !needsTransform
                                 ? original
@@ -212,7 +212,7 @@ namespace Infrastructure.Services
                             {
                                 // Aplicar transformación basada en la orientación EXIF
                                 SKBitmap transformedBitmap = null;
-                                
+
                                 try
                                 {
                                     if (needsTransform)
@@ -225,7 +225,7 @@ namespace Infrastructure.Services
                                         LogInfo("No se requiere transformación de orientación");
                                         transformedBitmap = resized;
                                     }
-                                    
+
                                     LogInfo($"Codificando imagen con calidad: {quality}%. Tamaño: {transformedBitmap.Width}x{transformedBitmap.Height}");
                                     using (var image = SKImage.FromBitmap(transformedBitmap))
                                     using (var encodedData = image.Encode(SKEncodedImageFormat.Jpeg, quality))
@@ -282,7 +282,7 @@ namespace Infrastructure.Services
                     {
                         throw new Exception("No se pudo decodificar la imagen para la miniatura");
                     }
-                    
+
                     try
                     {
                         // Extraer la orientación EXIF para corregir la rotación
@@ -291,12 +291,12 @@ namespace Infrastructure.Services
                         {
                             var orientation = codec?.EncodedOrigin ?? SKEncodedOrigin.Default;
                             LogInfo($"Miniatura - Orientación EXIF detectada: {orientation}. Tamaño original: {original.Width}x{original.Height}");
-                            
+
                             // Calcular nueva dimensión conservando proporción
                             int thumbWidth, thumbHeight;
                             float aspectRatio = (float)original.Width / original.Height;
                             LogInfo($"Miniatura - Relación de aspecto: {aspectRatio}");
-                            
+
                             // Si es una imagen horizontal
                             if (original.Width >= original.Height)
                             {
@@ -311,15 +311,15 @@ namespace Infrastructure.Services
                                 thumbWidth = (int)(width * aspectRatio);
                                 LogInfo($"Miniatura - Imagen vertical redimensionada a: {thumbWidth}x{thumbHeight}");
                             }
-                            
+
                             // Verificar si necesitamos rotar basado en la orientación EXIF
                             bool needsTransform = orientation != SKEncodedOrigin.Default && orientation != SKEncodedOrigin.TopLeft;
-                            
+
                             using (var resized = original.Resize(new SKImageInfo(thumbWidth, thumbHeight), SKFilterQuality.High))
                             {
                                 // Aplicar transformación basada en la orientación EXIF
                                 SKBitmap transformedBitmap = null;
-                                
+
                                 try
                                 {
                                     if (needsTransform)
@@ -332,7 +332,7 @@ namespace Infrastructure.Services
                                         LogInfo("Miniatura - No se requiere transformación de orientación");
                                         transformedBitmap = resized;
                                     }
-                                    
+
                                     LogInfo($"Miniatura - Codificando imagen con calidad: {quality}%. Tamaño: {transformedBitmap.Width}x{transformedBitmap.Height}");
                                     using (var image = SKImage.FromBitmap(transformedBitmap))
                                     using (var encodedData = image.Encode(SKEncodedImageFormat.Jpeg, quality))
@@ -372,15 +372,15 @@ namespace Infrastructure.Services
         private SKBitmap ApplyOrientation(SKBitmap bitmap, SKEncodedOrigin origin)
         {
             LogInfo($"Aplicando orientación EXIF: {origin}");
-            
+
             if (origin == SKEncodedOrigin.Default || origin == SKEncodedOrigin.TopLeft)
             {
                 // No rotation needed for Default/TopLeft
                 return bitmap;
             }
-            
-            SKBitmap rotated = null;
-            
+
+            SKBitmap? rotated = null;
+
             try
             {
                 switch (origin)
@@ -394,7 +394,7 @@ namespace Infrastructure.Services
                             canvas.DrawBitmap(bitmap, 0, 0);
                         }
                         break;
-                        
+
                     case SKEncodedOrigin.BottomRight: // Rotate 180
                         rotated = new SKBitmap(bitmap.Width, bitmap.Height);
                         using (var canvas = new SKCanvas(rotated))
@@ -403,7 +403,7 @@ namespace Infrastructure.Services
                             canvas.DrawBitmap(bitmap, 0, 0);
                         }
                         break;
-                        
+
                     case SKEncodedOrigin.BottomLeft: // Mirror vertical
                         rotated = new SKBitmap(bitmap.Width, bitmap.Height);
                         using (var canvas = new SKCanvas(rotated))
@@ -413,7 +413,7 @@ namespace Infrastructure.Services
                             canvas.DrawBitmap(bitmap, 0, 0);
                         }
                         break;
-                        
+
                     case SKEncodedOrigin.LeftTop: // Rotate 90 + mirror horizontal
                         rotated = new SKBitmap(bitmap.Height, bitmap.Width);
                         using (var canvas = new SKCanvas(rotated))
@@ -424,7 +424,7 @@ namespace Infrastructure.Services
                             canvas.DrawBitmap(bitmap, 0, 0);
                         }
                         break;
-                        
+
                     case SKEncodedOrigin.RightTop: // Rotate 90
                         rotated = new SKBitmap(bitmap.Height, bitmap.Width);
                         using (var canvas = new SKCanvas(rotated))
@@ -434,7 +434,7 @@ namespace Infrastructure.Services
                             canvas.DrawBitmap(bitmap, 0, 0);
                         }
                         break;
-                        
+
                     case SKEncodedOrigin.RightBottom: // Mirror horizontal + rotate 90
                         rotated = new SKBitmap(bitmap.Height, bitmap.Width);
                         using (var canvas = new SKCanvas(rotated))
@@ -446,7 +446,7 @@ namespace Infrastructure.Services
                             canvas.DrawBitmap(bitmap, 0, 0);
                         }
                         break;
-                        
+
                     case SKEncodedOrigin.LeftBottom: // Rotate 270
                         rotated = new SKBitmap(bitmap.Height, bitmap.Width);
                         using (var canvas = new SKCanvas(rotated))
@@ -456,11 +456,11 @@ namespace Infrastructure.Services
                             canvas.DrawBitmap(bitmap, 0, 0);
                         }
                         break;
-                        
+
                     default:
                         return bitmap;
                 }
-                
+
                 LogInfo($"Orientación aplicada correctamente: {origin}. Tamaño original: {bitmap.Width}x{bitmap.Height}, Nuevo: {rotated.Width}x{rotated.Height}");
                 return rotated;
             }
@@ -477,19 +477,19 @@ namespace Infrastructure.Services
             foreach (var path in imagePaths)
             {
                 if (string.IsNullOrEmpty(path)) continue;
-                
+
                 try
                 {
                     // Convertir ruta relativa a absoluta
                     var fullPath = Path.Combine(_environment.ContentRootPath, "wwwroot", path.TrimStart('/'));
-                    
+
                     // Determinar la ruta de la miniatura basada en la estructura de carpetas
                     string thumbnailPath;
-                    
+
                     // Extraer componentes de la ruta
                     var dirName = Path.GetDirectoryName(path.TrimStart('/'));
                     var fileName = Path.GetFileName(path);
-                    
+
                     if (dirName.Contains('/'))
                     {
                         // Para rutas con estructura /uploads/folder/itemId/
@@ -500,13 +500,13 @@ namespace Infrastructure.Services
                         // Para rutas con estructura /uploads/folder/
                         thumbnailPath = Path.Combine(_environment.ContentRootPath, "wwwroot", dirName, "thumbnails", fileName);
                     }
-                    
+
                     if (File.Exists(fullPath))
                     {
                         File.Delete(fullPath);
                         LogInfo($"Imagen eliminada: {fullPath}");
                     }
-                    
+
                     if (File.Exists(thumbnailPath))
                     {
                         File.Delete(thumbnailPath);
@@ -530,7 +530,7 @@ namespace Infrastructure.Services
                 return imagePath.Replace("http://", "https://");
             if (imagePath.StartsWith("https://"))
                 return imagePath;
-            
+
             // Verificar si tenemos un nombre de archivo sin ruta
             // Si no contiene barras, podría ser solo un nombre de archivo
             if (!imagePath.Contains("/"))
@@ -538,13 +538,13 @@ namespace Infrastructure.Services
                 // Asumir que es un nombre de archivo que debería estar en /uploads/expenses/
                 imagePath = $"/uploads/expenses/{imagePath}";
             }
-            
+
             // Verificar si tenemos una ruta relativa con formato correcto
             if (!imagePath.StartsWith("/"))
             {
                 imagePath = $"/{imagePath}";
             }
-            
+
             // Si se solicita miniatura, modificar la ruta
             if (thumbnail && !imagePath.Contains("/thumbnails/"))
             {
@@ -553,7 +553,7 @@ namespace Infrastructure.Services
                 {
                     var fileName = imagePath.Substring(lastSlashPos + 1);
                     var basePath = imagePath.Substring(0, lastSlashPos);
-                    
+
                     imagePath = $"{basePath}/thumbnails/{fileName}";
                 }
             }
@@ -581,7 +581,7 @@ namespace Infrastructure.Services
 
             // Convertir ruta relativa a absoluta
             var fullPath = Path.Combine(_environment.ContentRootPath, "wwwroot", imagePath.TrimStart('/'));
-            
+
             var exists = File.Exists(fullPath);
             if (!exists)
             {
@@ -589,17 +589,17 @@ namespace Infrastructure.Services
             }
             return exists;
         }
-        
+
         private void LogInfo(string message)
         {
             _logger?.LogInformation(message);
             Console.WriteLine(message);
         }
-        
+
         private void LogError(string message)
         {
             _logger?.LogError(message);
             Console.WriteLine($"ERROR: {message}");
         }
     }
-} 
+}
