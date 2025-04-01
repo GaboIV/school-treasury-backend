@@ -6,10 +6,11 @@ using MongoDB.Driver;
 using BC = BCrypt.Net.BCrypt;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Infrastructure.Persistence.Seeders;
 
 namespace Infrastructure.Seeders
 {
-    public class UserSeeder
+    public class UserSeeder : ISeeder
     {
         private readonly IMongoCollection<User> _users;
         private readonly IMongoCollection<Student> _students;

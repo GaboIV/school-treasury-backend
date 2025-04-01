@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Infrastructure.Seeders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Infrastructure.Persistence.Seeders;
 
 namespace Infrastructure
 {
@@ -12,20 +13,22 @@ namespace Infrastructure
         {
             using var scope = serviceProvider.CreateScope();
             var services = scope.ServiceProvider;
-            var logger = services.GetRequiredService<ILogger<UserSeeder>>();
+            var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("DatabaseSeeding");
 
             try
             {
-                logger.LogInformation("Iniciando seeders...");
+                logger.LogInformation("Iniciando proceso de sembrado de datos...");
                 
-                var userSeeder = services.GetRequiredService<UserSeeder>();
-                await userSeeder.SeedAsync();
+                // Utilizar el DatabaseSeeder para ejecutar todos los seeders registrados
+                var databaseSeeder = services.GetRequiredService<DatabaseSeeder>();
+                await databaseSeeder.SeedAllAsync();
                 
-                logger.LogInformation("Seeders completados exitosamente.");
+                logger.LogInformation("Proceso de sembrado de datos completado exitosamente.");
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error al ejecutar seeders.");
+                logger.LogError(ex, "Error durante el proceso de sembrado de datos.");
             }
         }
     }

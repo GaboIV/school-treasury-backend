@@ -43,8 +43,8 @@ namespace Infrastructure.Repositories
         public async Task<IEnumerable<StudentPayment>> GetPendingPaymentsByStudentIdAsync(string studentId)
         {
             return await _paymentCollection.Find(
-                payment => payment.StudentId == studentId && 
-                payment.Status == true && 
+                payment => payment.StudentId == studentId &&
+                payment.Status == true &&
                 (payment.PaymentStatus == PaymentStatus.Pending || payment.PaymentStatus == PaymentStatus.PartiallyPaid)
             ).ToListAsync();
         }
@@ -55,7 +55,7 @@ namespace Infrastructure.Repositories
             payment.CreatedAt = DateTime.UtcNow;
             payment.UpdatedAt = DateTime.UtcNow;
             payment.Pending = payment.AmountCollection - payment.AmountPaid;
-            
+
             await _paymentCollection.InsertOneAsync(payment);
             return payment;
         }
@@ -64,7 +64,7 @@ namespace Infrastructure.Repositories
         {
             payment.UpdatedAt = DateTime.UtcNow;
             payment.Pending = payment.AmountCollection - payment.AmountPaid;
-            
+
             await _paymentCollection.ReplaceOneAsync(
                 p => p.Id == payment.Id,
                 payment);
@@ -79,7 +79,7 @@ namespace Infrastructure.Repositories
         public async Task<IEnumerable<StudentPayment>> CreateManyAsync(IEnumerable<StudentPayment> payments)
         {
             var paymentsList = new List<StudentPayment>();
-            
+
             foreach (var payment in payments)
             {
                 payment.Status = true;
@@ -88,7 +88,7 @@ namespace Infrastructure.Repositories
                 payment.Pending = payment.AmountCollection - payment.AmountPaid;
                 paymentsList.Add(payment);
             }
-            
+
             await _paymentCollection.InsertManyAsync(paymentsList);
             return paymentsList;
         }
@@ -96,12 +96,12 @@ namespace Infrastructure.Repositories
         public async Task UpdateManyAsync(IEnumerable<StudentPayment> payments)
         {
             var bulkOps = new List<WriteModel<StudentPayment>>();
-            
+
             foreach (var payment in payments)
             {
                 payment.UpdatedAt = DateTime.UtcNow;
                 payment.Pending = payment.AmountCollection - payment.AmountPaid;
-                
+
                 // Actualizar el estado del pago basado en los montos
                 if (payment.AmountPaid >= payment.AmountCollection)
                 {
@@ -114,9 +114,9 @@ namespace Infrastructure.Repositories
                     {
                         payment.PaymentStatus = PaymentStatus.Paid;
                     }
-                    
+
                     payment.Pending = 0;
-                    
+
                     if (payment.PaymentDate == null)
                     {
                         payment.PaymentDate = DateTime.UtcNow;
@@ -130,7 +130,7 @@ namespace Infrastructure.Repositories
                 {
                     payment.PaymentStatus = PaymentStatus.Pending;
                 }
-                
+
                 var filter = Builders<StudentPayment>.Filter.Eq(p => p.Id, payment.Id);
                 var update = Builders<StudentPayment>.Update
                     .Set(p => p.AmountPaid, payment.AmountPaid)
@@ -139,10 +139,10 @@ namespace Infrastructure.Repositories
                     .Set(p => p.Excedent, payment.Excedent)
                     .Set(p => p.PaymentDate, payment.PaymentDate)
                     .Set(p => p.UpdatedAt, payment.UpdatedAt);
-                
+
                 bulkOps.Add(new UpdateOneModel<StudentPayment>(filter, update));
             }
-            
+
             if (bulkOps.Count > 0)
             {
                 await _paymentCollection.BulkWriteAsync(bulkOps);
@@ -155,7 +155,7 @@ namespace Infrastructure.Repositories
             var payments = students.Select(student => new StudentPayment
             {
                 CollectionId = collectionId,
-                StudentId = student.Id,
+                StudentId = student.Id ?? "",
                 AmountCollection = individualAmount,
                 AdjustedAmountCollection = individualAmount,
                 PaymentStatus = PaymentStatus.Pending,
@@ -198,4 +198,4 @@ namespace Infrastructure.Repositories
             await _paymentCollection.InsertOneAsync(payment);
         }
     }
-} 
+}

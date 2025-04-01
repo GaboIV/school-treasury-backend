@@ -70,11 +70,14 @@ namespace Infrastructure
             services.AddScoped<IInterestLinkRepository, InterestLinkRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IAppVersionRepository, AppVersionRepository>();
+            services.AddScoped<IAppInfoRepository, AppInfoRepository>();
+            services.AddScoped<IDownloadStatRepository, DownloadStatRepository>();
 
             // Registrar seeders
             services.AddScoped<ISeeder, StudentSeeder>();
+            services.AddScoped<ISeeder, AppDataSeeder>();
+            services.AddScoped<ISeeder, UserSeeder>();
             services.AddScoped<DatabaseSeeder>();
-            services.AddScoped<UserSeeder>();
 
             // Registrar servicios
             services.AddScoped<IFileService, FileService>();
@@ -88,6 +91,8 @@ namespace Infrastructure
             services.AddScoped<IDashboardService, DashboardService>();
             services.AddScoped<IInterestLinkService, InterestLinkService>();
             services.AddScoped<IAppVersionService, AppVersionService>();
+            services.AddScoped<IAppInfoService, AppInfoService>();
+            services.AddScoped<IDownloadStatService, DownloadStatService>();
 
             return services;
         }
@@ -95,8 +100,22 @@ namespace Infrastructure
         public static async Task SeedDatabaseAsync(this IServiceProvider serviceProvider)
         {
             using var scope = serviceProvider.CreateScope();
+            var loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("DatabaseSeeding");
             var databaseSeeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
-            await databaseSeeder.SeedAllAsync();
+            
+            logger.LogInformation("Iniciando proceso de sembrado de datos...");
+            
+            try
+            {
+                await databaseSeeder.SeedAllAsync();
+                logger.LogInformation("Sembrado de datos completado exitosamente.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error durante el sembrado de datos.");
+                throw;
+            }
         }
     }
 }

@@ -21,7 +21,7 @@ namespace Infrastructure.Persistence.Seeders
         {
             // Verificar si ya existen estudiantes en la colección
             var studentsCount = await _studentCollection.CountDocumentsAsync(Builders<Student>.Filter.Empty);
-            
+
             if (studentsCount > 0)
             {
                 // Ya existen estudiantes, no es necesario sembrar
