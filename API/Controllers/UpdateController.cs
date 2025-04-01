@@ -72,7 +72,8 @@ namespace SchoolTreasureAPI.API.Controllers
                 LatestVersion = latestVersion.Version,
                 ChangeLog = latestVersion.ChangeLog,
                 ReleaseDate = latestVersion.ReleaseDate,
-                IsRequired = latestVersion.IsRequired
+                IsRequired = latestVersion.IsRequired,
+                DownloadUrl = latestVersion.DownloadUrl
             });
         }
 
@@ -134,6 +135,11 @@ namespace SchoolTreasureAPI.API.Controllers
 
                 _logger.LogInformation("Archivo APK guardado exitosamente");
 
+                // Obtener la URL base para construir la URL de descarga
+                var request = HttpContext.Request;
+                var baseUrl = $"{request.Scheme}://{request.Host}";
+                string downloadUrl = $"{baseUrl}/api/update/lastest-apk";
+
                 // Crear el registro de versión en la base de datos
                 var appVersion = new AppVersion
                 {
@@ -142,7 +148,8 @@ namespace SchoolTreasureAPI.API.Controllers
                     ApkFilename = apkFileName,
                     IsAvailable = versionDTO.IsAvailable,
                     IsRequired = versionDTO.IsRequired,
-                    ReleaseDate = DateTime.UtcNow
+                    ReleaseDate = DateTime.UtcNow,
+                    DownloadUrl = downloadUrl
                 };
 
                 var savedVersion = await _appVersionService.AddVersionAsync(appVersion);
@@ -156,7 +163,8 @@ namespace SchoolTreasureAPI.API.Controllers
                     ApkFilename = savedVersion.ApkFilename,
                     IsAvailable = savedVersion.IsAvailable,
                     IsRequired = savedVersion.IsRequired,
-                    ReleaseDate = savedVersion.ReleaseDate
+                    ReleaseDate = savedVersion.ReleaseDate,
+                    DownloadUrl = savedVersion.DownloadUrl
                 });
             }
             catch (Exception ex)
@@ -185,6 +193,19 @@ namespace SchoolTreasureAPI.API.Controllers
                 existingVersion.ChangeLog = versionDTO.ChangeLog;
                 existingVersion.IsAvailable = versionDTO.IsAvailable;
                 existingVersion.IsRequired = versionDTO.IsRequired;
+                
+                // Si se proporciona una URL de descarga, actualizarla
+                if (!string.IsNullOrEmpty(versionDTO.DownloadUrl))
+                {
+                    existingVersion.DownloadUrl = versionDTO.DownloadUrl;
+                }
+                // Si no hay URL de descarga, crear una basada en la URL actual
+                else if (string.IsNullOrEmpty(existingVersion.DownloadUrl))
+                {
+                    var request = HttpContext.Request;
+                    var baseUrl = $"{request.Scheme}://{request.Host}";
+                    existingVersion.DownloadUrl = $"{baseUrl}/api/update/lastest-apk";
+                }
 
                 var updatedVersion = await _appVersionService.UpdateVersionAsync(existingVersion);
                 _logger.LogInformation("Versión actualizada exitosamente: {Id}", id);
@@ -197,7 +218,8 @@ namespace SchoolTreasureAPI.API.Controllers
                     ApkFilename = updatedVersion.ApkFilename,
                     IsAvailable = updatedVersion.IsAvailable,
                     IsRequired = updatedVersion.IsRequired,
-                    ReleaseDate = updatedVersion.ReleaseDate
+                    ReleaseDate = updatedVersion.ReleaseDate,
+                    DownloadUrl = updatedVersion.DownloadUrl
                 });
             }
             catch (Exception ex)

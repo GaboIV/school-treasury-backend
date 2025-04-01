@@ -41,12 +41,12 @@ namespace SchoolTreasureAPI.API.Controllers
             try
             {
                 var appInfo = await _appInfoService.GetAppInfoAsync();
-                
+
                 if (appInfo == null)
                 {
                     return NotFound("Información de la aplicación no encontrada.");
                 }
-                
+
                 // Actualizar la información dinámica
                 var latestVersion = await _appVersionService.GetLatestAvailableVersionAsync();
                 if (latestVersion != null && appInfo.LatestVersion != null)
@@ -54,21 +54,21 @@ namespace SchoolTreasureAPI.API.Controllers
                     // Actualizar la versión actual en la información de la app
                     appInfo.Version = latestVersion.Version;
                     appInfo.ReleaseDate = latestVersion.ReleaseDate;
-                    
+
                     // Aseguramos que se incluya el changelog en el formato correcto
-                    if (!string.IsNullOrEmpty(latestVersion.ChangeLog) && latestVersion.ChangeLog.Contains('\n'))
-                    {
-                        appInfo.ChangeLog = latestVersion.ChangeLog.Split('\n').ToList();
-                    }
+                    // if (!string.IsNullOrEmpty(latestVersion.ChangeLog) && latestVersion.ChangeLog.Contains('\n'))
+                    // {
+                    //     appInfo.ChangeLog = latestVersion.ChangeLog.Split('\n').ToList();
+                    // }
                 }
-                
+
                 // Obtener el conteo total de descargas para mostrarlo en el frontend
                 var downloadStats = await _downloadStatService.GetStatsAsync();
                 if (downloadStats != null)
                 {
                     appInfo.Downloads = downloadStats.TotalDownloads;
                 }
-                
+
                 return Ok(appInfo);
             }
             catch (Exception ex)
@@ -106,7 +106,7 @@ namespace SchoolTreasureAPI.API.Controllers
                 // Obtener la URL base para construir la URL de descarga
                 var request = HttpContext.Request;
                 var baseUrl = $"{request.Scheme}://{request.Host}";
-                
+
                 var updateInfo = await _appInfoService.CheckForUpdateAsync(currentVersion, baseUrl);
                 return Ok(updateInfo);
             }
@@ -123,7 +123,7 @@ namespace SchoolTreasureAPI.API.Controllers
             try
             {
                 var latestVersion = await _appVersionService.GetLatestAvailableVersionAsync();
-                
+
                 if (latestVersion == null)
                 {
                     return NotFound("No hay versiones disponibles para descargar.");
@@ -142,7 +142,7 @@ namespace SchoolTreasureAPI.API.Controllers
                 }
 
                 var apkFilePath = Path.Combine(_environment.WebRootPath, "apk", latestVersion.ApkFilename);
-                
+
                 if (!System.IO.File.Exists(apkFilePath))
                 {
                     return NotFound("Archivo APK no encontrado.");
@@ -165,7 +165,7 @@ namespace SchoolTreasureAPI.API.Controllers
             try
             {
                 var version = await _appVersionService.GetVersionByIdAsync(id);
-                
+
                 if (version == null)
                 {
                     return NotFound($"Versión con ID {id} no encontrada.");
@@ -184,7 +184,7 @@ namespace SchoolTreasureAPI.API.Controllers
                 }
 
                 var apkFilePath = Path.Combine(_environment.WebRootPath, "apk", version.ApkFilename);
-                
+
                 if (!System.IO.File.Exists(apkFilePath))
                 {
                     return NotFound("Archivo APK no encontrado.");
@@ -257,4 +257,4 @@ namespace SchoolTreasureAPI.API.Controllers
             }
         }
     }
-} 
+}

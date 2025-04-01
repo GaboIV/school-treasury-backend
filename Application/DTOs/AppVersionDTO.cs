@@ -9,6 +9,7 @@ namespace SchoolTreasureAPI.Application.DTOs
         public string ChangeLog { get; set; }
         public bool IsAvailable { get; set; }
         public bool IsRequired { get; set; }
+        public string DownloadUrl { get; set; }
     }
 
     public class AppVersionUploadDTO : AppVersionDTO

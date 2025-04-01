@@ -19,14 +19,14 @@ namespace SchoolTreasureAPI.Application.Services
         public async Task<AppInfoDTO> GetAppInfoAsync()
         {
             var appInfo = await _appInfoRepository.GetAppInfoAsync();
-            
+
             if (appInfo == null)
             {
                 return null;
             }
 
             var latestVersion = await _appVersionService.GetLatestAvailableVersionAsync();
-            
+
             return new AppInfoDTO
             {
                 Id = appInfo.Id,
@@ -39,7 +39,7 @@ namespace SchoolTreasureAPI.Application.Services
                 WebsiteUrl = appInfo.WebsiteUrl,
                 PrivacyPolicyUrl = appInfo.PrivacyPolicyUrl,
                 LastUpdate = appInfo.LastUpdate,
-                
+
                 // Nuevos campos para el frontend
                 ImageUrl = appInfo.ImageUrl,
                 Name = appInfo.Name ?? appInfo.AppName,  // Usar AppName como fallback si Name es null
@@ -50,8 +50,8 @@ namespace SchoolTreasureAPI.Application.Services
                 ReleaseDate = latestVersion?.ReleaseDate ?? appInfo.ReleaseDate,
                 MinAndroidVersion = appInfo.MinAndroidVersion,
                 Rating = appInfo.Rating,
-                ChangeLog = latestVersion?.ChangeLog?.Split('\n').ToList() ?? appInfo.ChangeLog,
-                
+                ChangeLog = appInfo.ChangeLog,
+
                 LatestVersion = latestVersion != null ? new AppVersionResponseDTO
                 {
                     Id = latestVersion.Id,
@@ -60,7 +60,8 @@ namespace SchoolTreasureAPI.Application.Services
                     ApkFilename = latestVersion.ApkFilename,
                     IsAvailable = latestVersion.IsAvailable,
                     IsRequired = latestVersion.IsRequired,
-                    ReleaseDate = latestVersion.ReleaseDate
+                    ReleaseDate = latestVersion.ReleaseDate,
+                    DownloadUrl = latestVersion.DownloadUrl
                 } : null
             };
         }
@@ -78,7 +79,7 @@ namespace SchoolTreasureAPI.Application.Services
         public async Task<CheckUpdateResponseDTO> CheckForUpdateAsync(string currentVersion, string baseUrl)
         {
             var isUpdateAvailable = await _appVersionService.IsUpdateAvailableAsync(currentVersion);
-            
+
             if (!isUpdateAvailable)
             {
                 return new CheckUpdateResponseDTO
@@ -88,7 +89,12 @@ namespace SchoolTreasureAPI.Application.Services
             }
 
             var latestVersion = await _appVersionService.GetLatestAvailableVersionAsync();
-            
+
+            // Usar la URL de descarga almacenada en la entidad si existe
+            string downloadUrl = !string.IsNullOrEmpty(latestVersion.DownloadUrl)
+                ? latestVersion.DownloadUrl
+                : $"{baseUrl}/api/apps/download/latest";
+
             return new CheckUpdateResponseDTO
             {
                 IsUpdateAvailable = true,
@@ -96,8 +102,8 @@ namespace SchoolTreasureAPI.Application.Services
                 LatestVersion = latestVersion.Version,
                 ChangeLog = latestVersion.ChangeLog,
                 ReleaseDate = latestVersion.ReleaseDate,
-                DownloadUrl = $"{baseUrl}/api/apps/download/latest"
+                DownloadUrl = downloadUrl
             };
         }
     }
-} 
+}
