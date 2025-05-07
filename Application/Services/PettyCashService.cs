@@ -369,6 +369,8 @@ namespace Application.Services
                 }
                 
                 decimal runningBalance = 0;
+                decimal totalIncome = 0;
+                decimal totalExpense = 0;
                 
                 foreach (var transaction in allTransactions)
                 {
@@ -377,9 +379,15 @@ namespace Application.Services
                     
                     // Calcular el nuevo saldo según el tipo de transacción
                     if (transaction.Type == TransactionType.Income || transaction.Type == TransactionType.Collection)
+                    {
                         runningBalance += transaction.Amount;
+                        totalIncome += transaction.Amount;
+                    }
                     else // TransactionType.Expense
+                    {
                         runningBalance -= transaction.Amount;
+                        totalExpense += transaction.Amount;
+                    }
                     
                     // Actualizar el nuevo saldo
                     transaction.NewBalance = runningBalance;
@@ -396,6 +404,10 @@ namespace Application.Services
                 }
                 
                 pettyCash.CurrentBalance = runningBalance;
+                pettyCash.TotalIncome = totalIncome;
+                pettyCash.TotalExpense = totalExpense;
+                pettyCash.LastUpdated = DateTime.UtcNow;
+                
                 await _pettyCashRepository.UpdateAsync(pettyCash);
                 
                 return true;
