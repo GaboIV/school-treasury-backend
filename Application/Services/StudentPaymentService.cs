@@ -2,6 +2,7 @@ using Application.DTOs;
 using Application.Interfaces;
 using Domain.Entities;
 using OpenTelemetry.Trace;
+using System;
 using System.Diagnostics;
 
 namespace Application.Services
@@ -674,7 +675,7 @@ namespace Application.Services
                 var totalPaid = payments.Sum(p => p.AmountPaid);
                 decimal totalAmount = collection.IndividualAmount * collection.Advance.Total;
 
-                collection.PercentagePaid = totalAmount > 0 ? (totalPaid / totalAmount) * 100 : 0;
+                collection.PercentagePaid = totalAmount > 0 ? Math.Round((totalPaid / totalAmount) * 100, 2) : 0;
 
                 _logger.LogInformation(
                     "Avance actualizado para colección {CollectionId}. Anterior: {PreviousAdvance}, Nuevo: {NewAdvance}",

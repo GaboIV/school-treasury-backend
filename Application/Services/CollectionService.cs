@@ -74,7 +74,7 @@ namespace Application.Services {
             _logger.LogInfo($"Total de estudiantes registrados en el sistema: {totalStudents}");
             
             if (dto.StudentQuantity == "all") {
-                individualAmount = dto.TotalAmount / totalStudents;
+                individualAmount = Math.Round(dto.TotalAmount / totalStudents, 2);
                 _logger.LogInfo($"Cobro para todos los estudiantes. Monto individual calculado: {individualAmount}");
             }
 
@@ -139,7 +139,7 @@ namespace Application.Services {
             _logger.LogDebug($"Monto total anterior: {previousTotalAmount}, Nuevo monto total: {dto.TotalAmount}");
 
             if (dto.StudentQuantity == "all") {
-                individualAmount = dto.TotalAmount / totalStudents;
+                individualAmount = Math.Round(dto.TotalAmount / totalStudents, 2);
                 _logger.LogDebug($"Nuevo monto individual calculado: {individualAmount}");
             }
 
@@ -256,7 +256,7 @@ namespace Application.Services {
 
             // Calcular el nuevo monto individual
             int totalStudents = await _studentRepository.CountAsync(s => s.Status == true);
-            decimal newIndividualAmount = newTotalAmount / totalStudents;
+            decimal newIndividualAmount = Math.Round(newTotalAmount / totalStudents, 2);
             
             _logger.LogDebug($"Monto total anterior: {collection.TotalAmount}, Nuevo monto total: {newTotalAmount}");
             _logger.LogDebug($"Monto individual anterior: {collection.IndividualAmount}, Nuevo monto individual: {newIndividualAmount}");
@@ -318,7 +318,7 @@ namespace Application.Services {
 
             // Calcular el porcentaje pagado
             var totalPaid = payments.Sum(p => p.AmountPaid);
-            collection.PercentagePaid = newTotalAmount > 0 ? (totalPaid / newTotalAmount) * 100 : 0;
+            collection.PercentagePaid = newTotalAmount > 0 ? Math.Round((totalPaid / newTotalAmount) * 100, 2) : 0;
             
             _logger.LogInfo($"Porcentaje pagado del cobro: {collection.PercentagePaid}%. Total pagado: {totalPaid}, Total esperado: {newTotalAmount}");
 

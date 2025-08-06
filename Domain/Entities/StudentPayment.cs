@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 namespace Domain.Entities
 {
+    [BsonIgnoreExtraElements]
     public class StudentPayment : BaseEntity
     {
         [BsonElement("collectionId")]
