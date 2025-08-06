@@ -15,9 +15,6 @@ namespace Domain.Entities
         [BsonElement("amountCollection")]
         public decimal AmountCollection { get; set; }
         
-        [BsonElement("adjustedAmountCollection")]
-        public decimal AdjustedAmountCollection { get; set; }
-        
         [BsonElement("amountPaid")]
         public decimal AmountPaid { get; set; } = 0;
         
@@ -30,11 +27,7 @@ namespace Domain.Entities
         [BsonElement("voucher")]
         public string? Voucher { get; set; }
         
-        [BsonElement("excedent")]
-        public decimal Excedent { get; set; } = 0;
-        
-        [BsonElement("surplus")]
-        public decimal Surplus { get; set; } = 0;
+
         
         [BsonElement("pending")]
         public decimal Pending { get; set; }
@@ -51,7 +44,6 @@ namespace Domain.Entities
         Pending,
         PartiallyPaid,
         Paid,
-        Excedent,
         Exonerated
     }
 } 

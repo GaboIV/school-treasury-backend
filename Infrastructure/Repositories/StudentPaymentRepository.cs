@@ -105,16 +105,7 @@ namespace Infrastructure.Repositories
                 // Actualizar el estado del pago basado en los montos
                 if (payment.AmountPaid >= payment.AmountCollection)
                 {
-                    if (payment.AmountPaid > payment.AmountCollection)
-                    {
-                        payment.Excedent = payment.AmountPaid - payment.AmountCollection;
-                        payment.PaymentStatus = PaymentStatus.Excedent;
-                    }
-                    else
-                    {
-                        payment.PaymentStatus = PaymentStatus.Paid;
-                    }
-
+                    payment.PaymentStatus = PaymentStatus.Paid;
                     payment.Pending = 0;
 
                     if (payment.PaymentDate == null)
@@ -136,7 +127,7 @@ namespace Infrastructure.Repositories
                     .Set(p => p.AmountPaid, payment.AmountPaid)
                     .Set(p => p.PaymentStatus, payment.PaymentStatus)
                     .Set(p => p.Pending, payment.Pending)
-                    .Set(p => p.Excedent, payment.Excedent)
+
                     .Set(p => p.PaymentDate, payment.PaymentDate)
                     .Set(p => p.UpdatedAt, payment.UpdatedAt);
 
@@ -157,7 +148,6 @@ namespace Infrastructure.Repositories
                 CollectionId = collectionId,
                 StudentId = student.Id ?? "",
                 AmountCollection = individualAmount,
-                AdjustedAmountCollection = individualAmount,
                 PaymentStatus = PaymentStatus.Pending,
                 Pending = individualAmount,
                 CreatedAt = DateTime.UtcNow,
@@ -173,20 +163,21 @@ namespace Infrastructure.Repositories
             foreach (var payment in payments)
             {
                 payment.AmountCollection = newIndividualAmount;
-                payment.AdjustedAmountCollection = newIndividualAmount;
                 payment.Pending = newIndividualAmount - payment.AmountPaid;
                 payment.UpdatedAt = DateTime.UtcNow;
 
                 if (payment.AmountPaid >= newIndividualAmount)
                 {
                     payment.PaymentStatus = PaymentStatus.Paid;
-                    payment.Excedent = payment.AmountPaid - newIndividualAmount;
                     payment.Pending = 0;
                 }
                 else if (payment.AmountPaid > 0)
                 {
                     payment.PaymentStatus = PaymentStatus.PartiallyPaid;
-                    payment.Excedent = 0;
+                }
+                else
+                {
+                    payment.PaymentStatus = PaymentStatus.Pending;
                 }
 
                 await UpdateAsync(payment);

@@ -176,21 +176,12 @@ namespace Application.Services
                     PaymentDate = dto.PaymentDate
                 };
 
-                var individualAmount = (collection.AdjustedIndividualAmount != null ? collection.AdjustedIndividualAmount : collection.IndividualAmount) ?? 0;
+                var individualAmount = collection.IndividualAmount;
 
                 // Establecer el estado del pago
                 if (dto.AmountPaid >= individualAmount)
                 {
-                    if (dto.AmountPaid > individualAmount)
-                    {
-                        payment.Excedent = dto.AmountPaid - individualAmount;
-                        payment.PaymentStatus = PaymentStatus.Excedent;
-                    }
-                    else
-                    {
-                        payment.PaymentStatus = PaymentStatus.Paid;
-                    }
-
+                    payment.PaymentStatus = PaymentStatus.Paid;
                     payment.Pending = 0;
 
                     // Si no se proporcionó una fecha, se establece automáticamente
@@ -265,23 +256,10 @@ namespace Application.Services
                 payment.Images = dto.Images;
             }
 
-            // Actualizar el monto ajustado desde el gasto si existe
-            if (collection?.AdjustedIndividualAmount.HasValue == true)
-            {
-                payment.AdjustedAmountCollection = collection.AdjustedIndividualAmount.Value;
-                payment.Surplus = collection.TotalSurplus;
-            }
-
-            // Determinar qué monto usar para las comparaciones (ajustado o original)
-            decimal amountToCompare = payment.AdjustedAmountCollection > 0
-                ? payment.AdjustedAmountCollection
-                : payment.AmountCollection;
-
-            // Actualizar el estado del pago
-            if (payment.AmountPaid >= amountToCompare)
+            // Actualizar el estado del pago basado solo en el monto del cobro
+            if (payment.AmountPaid >= payment.AmountCollection)
             {
                 payment.PaymentStatus = PaymentStatus.Paid;
-                payment.Excedent = payment.AmountPaid - amountToCompare;
                 payment.Pending = 0;
 
                 // Si no tiene fecha de pago, establecerla
@@ -293,8 +271,7 @@ namespace Application.Services
             else if (payment.AmountPaid > 0)
             {
                 payment.PaymentStatus = PaymentStatus.PartiallyPaid;
-                payment.Excedent = 0;
-                payment.Pending = amountToCompare - payment.AmountPaid;
+                payment.Pending = payment.AmountCollection - payment.AmountPaid;
 
                 // Si no tiene fecha de pago, establecerla
                 if (payment.PaymentDate == null)
@@ -305,8 +282,7 @@ namespace Application.Services
             else
             {
                 payment.PaymentStatus = PaymentStatus.Pending;
-                payment.Excedent = 0;
-                payment.Pending = amountToCompare;
+                payment.Pending = payment.AmountCollection;
                 // Si el monto es 0, anular la fecha de pago
                 payment.PaymentDate = null;
             }
@@ -330,19 +306,7 @@ namespace Application.Services
                 );
             }
 
-            // Si hay excedente, registrar un ingreso en caja chica
-            if (payment.Excedent > 0)
-            {
-                // Obtener el nombre del estudiante
-                var student = await _studentRepository.GetByIdAsync(payment.StudentId);
-                string studentName = student?.Name ?? "Desconocido";
 
-                await _pettyCashService.RegisterIncomeFromExcedentAsync(
-                    payment.Id,
-                    payment.Excedent,
-                    $"Excedente de pago para {collection?.Name} - Estudiante: {studentName}"
-                );
-            }
 
             return await EnrichPaymentWithDetails(payment);
         }
@@ -423,28 +387,18 @@ namespace Application.Services
                 // Actualizar el estado del pago
                 if (payment.AmountPaid >= newIndividualAmount)
                 {
-                    if (payment.AmountPaid > newIndividualAmount)
-                    {
-                        payment.Excedent = payment.AmountPaid - newIndividualAmount;
-                        payment.PaymentStatus = PaymentStatus.Excedent;
-                    }
-                    else
-                    {
-                        payment.PaymentStatus = PaymentStatus.Paid;
-                        payment.Excedent = 0;
-                    }
-
+                    payment.PaymentStatus = PaymentStatus.Paid;
                     payment.Pending = 0;
                 }
                 else if (payment.AmountPaid > 0)
                 {
                     payment.PaymentStatus = PaymentStatus.PartiallyPaid;
-                    payment.Excedent = 0;
+                    payment.Pending = newIndividualAmount - payment.AmountPaid;
                 }
                 else
                 {
                     payment.PaymentStatus = PaymentStatus.Pending;
-                    payment.Excedent = 0;
+                    payment.Pending = newIndividualAmount;
                 }
             }
 
@@ -457,7 +411,7 @@ namespace Application.Services
         public async Task<StudentPaymentDto> RegisterPaymentWithImagesAsync(RegisterPaymentWithImagesDto dto)
         {
             using var activity = _activitySource.StartActivity("RegisterPaymentWithImages");
-            var stopwatch = Stopwatch.StartNew();  // ⏱ Inicia medición de tiempo
+
 
             _logger.LogInformation("Service: Iniciando registro de pago con imágenes para PaymentId: {PaymentId}", dto.Id);
 
@@ -499,18 +453,12 @@ namespace Application.Services
             // Comparación de montos antes de definir el estado
             _logger.LogInformation("Service: Comparando montos - Anterior: {PreviousAmountPaid}, Nuevo: {AmountPaid}", previousAmountPaid, dto.AmountPaid);
 
-            // Determinar el monto de comparación
-            decimal amountToCompare = payment.AdjustedAmountCollection > 0 ? payment.AdjustedAmountCollection : payment.AmountCollection;
-            _logger.LogInformation("Service: Monto de comparación determinado: {AmountToCompare}", amountToCompare);
+            // Evaluar el estado del pago basado en el monto del cobro
+            _logger.LogInformation("Service: Monto del cobro: {AmountCollection}, Monto pagado: {AmountPaid}", payment.AmountCollection, payment.AmountPaid);
 
-            // Comparación del monto pagado con el monto de referencia
-            _logger.LogInformation("Service: Monto a comparar: {AmountToCompare}, Monto pagado: {AmountPaid}", amountToCompare, payment.AmountPaid);
-
-            // Evaluar el estado del pago
-            if (payment.AmountPaid >= amountToCompare)
+            if (payment.AmountPaid >= payment.AmountCollection)
             {
                 payment.PaymentStatus = PaymentStatus.Paid;
-                payment.Excedent = payment.AmountPaid - amountToCompare;
                 payment.Pending = 0;
 
                 // Si no tiene fecha de pago, establecerla
@@ -519,13 +467,12 @@ namespace Application.Services
                     payment.PaymentDate = DateTime.UtcNow;
                 }
 
-                _logger.LogInformation("Service: Pago completado. Excedente: {Excedent}, Estado: {PaymentStatus}", payment.Excedent, payment.PaymentStatus);
+                _logger.LogInformation("Service: Pago completado. Estado: {PaymentStatus}", payment.PaymentStatus);
             }
             else if (payment.AmountPaid > 0)
             {
                 payment.PaymentStatus = PaymentStatus.PartiallyPaid;
-                payment.Excedent = 0;
-                payment.Pending = amountToCompare - payment.AmountPaid;
+                payment.Pending = payment.AmountCollection - payment.AmountPaid;
 
                 // Si no tiene fecha de pago, establecerla
                 if (payment.PaymentDate == null)
@@ -538,8 +485,7 @@ namespace Application.Services
             else
             {
                 payment.PaymentStatus = PaymentStatus.Pending;
-                payment.Excedent = 0;
-                payment.Pending = amountToCompare;
+                payment.Pending = payment.AmountCollection;
                 // Si el monto es 0, anular la fecha de pago
                 payment.PaymentDate = null;
                 _logger.LogInformation("Service: Pago pendiente. Pendiente: {Pending}, Estado: {PaymentStatus}", payment.Pending, payment.PaymentStatus);
@@ -561,7 +507,7 @@ namespace Application.Services
 
                 _logger.LogInformation("Service: Registrando ingreso en caja chica para PaymentId: {PaymentId}", payment.Id);
 
-                await _pettyCashService.RegisterIncomeFromExcedentAsync(
+                await _pettyCashService.RegisterExpenseFromPaymentAsync(
                     payment.Id,
                     payment.AmountPaid,
                     $"Registro de pago para {collection?.Name} - Estudiante: {studentName}"
@@ -622,7 +568,6 @@ namespace Application.Services
             payment.PaymentStatus = PaymentStatus.Exonerated;
             payment.AmountPaid = 0;
             payment.Pending = 0; // Asegurarnos de que el monto pendiente sea 0
-            payment.Excedent = 0;
             payment.PaymentDate = dto.PaymentDate ?? DateTime.UtcNow;
             payment.Comment = $"PAGO EXONERADO: {dto.Comment}";
             payment.UpdatedAt = DateTime.UtcNow;
@@ -664,10 +609,7 @@ namespace Application.Services
             var student = await _studentRepository.GetByIdAsync(payment.StudentId);
             var collection = await _collectionRepository.GetByIdAsync(payment.CollectionId);
 
-            // Determinar el monto que se debe mostrar
-            decimal amountToShow = payment.AdjustedAmountCollection > 0
-                ? payment.AdjustedAmountCollection
-                : payment.AmountCollection;
+
 
             var imageUrls = new List<string>();
             foreach (var imagePath in payment.Images)
@@ -686,13 +628,12 @@ namespace Application.Services
                 StudentName = student?.Name,
                 CollectionName = collection?.Name,
                 AmountCollection = payment.AmountCollection,
-                AdjustedAmountCollection = payment.AdjustedAmountCollection,
+
                 AmountPaid = payment.AmountPaid,
                 PaymentStatus = payment.PaymentStatus,
                 Images = imageUrls,
                 Voucher = payment.Voucher,
-                Excedent = payment.Excedent,
-                Surplus = payment.Surplus,
+
                 Pending = payment.Pending,
                 Comment = payment.Comment,
                 PaymentDate = payment.PaymentDate,
@@ -731,9 +672,7 @@ namespace Application.Services
                 collection.Advance.Pending = collection.Advance.Total - collection.Advance.Completed;
 
                 var totalPaid = payments.Sum(p => p.AmountPaid);
-                decimal totalAmount = collection.AdjustedIndividualAmount.HasValue
-                    ? collection.AdjustedIndividualAmount.Value * collection.Advance.Total
-                    : collection.IndividualAmount * collection.Advance.Total;
+                decimal totalAmount = collection.IndividualAmount * collection.Advance.Total;
 
                 collection.PercentagePaid = totalAmount > 0 ? (totalPaid / totalAmount) * 100 : 0;
 

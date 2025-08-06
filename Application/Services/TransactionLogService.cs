@@ -122,9 +122,7 @@ namespace Application.Services
             switch (log.RelatedEntityType)
             {
                 case "StudentPayment":
-                    return log.Type == TransactionType.Income 
-                        ? "Ingreso por excedente de pago"
-                        : "Egreso por registro de pago";
+                    return "Egreso por registro de pago";
                 default:
                     return $"{typeText} relacionado con {log.RelatedEntityType}";
             }

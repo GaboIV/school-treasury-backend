@@ -13,7 +13,7 @@ namespace Application.Interfaces {
         Task<bool> DeleteCollectionAsync(string id);
         Task<bool> ExistsCollectionWithTypeIdAsync(string collectionTypeId);
         Task<(IEnumerable<Collection> Collections, int TotalCount)> GetPaginatedCollectionsAsync(int page, int pageSize);
-        Task<Collection> AdjustCollectionAmountAsync(string id, AdjustCollectionAmountDto dto);
+        Task<Collection> UpdateCollectionAmountAsync(string id, decimal newTotalAmount);
     }
 }
 

@@ -243,73 +243,62 @@ namespace Application.Services {
             return (result.Items, result.TotalCount);
         }
 
-        public async Task<Collection> AdjustCollectionAmountAsync(string id, AdjustCollectionAmountDto dto)
+        public async Task<Collection> UpdateCollectionAmountAsync(string id, decimal newTotalAmount)
         {
-            _logger.LogInfo($"Ajustando monto del cobro con ID: {id}. Nuevo monto ajustado: {dto.AdjustedAmount}, Excedente: {dto.Surplus}");
+            _logger.LogInfo($"Actualizando monto total del cobro con ID: {id}. Nuevo monto total: {newTotalAmount}");
             
             var collection = await _collectionRepository.GetByIdAsync(id);
             if (collection == null)
             {
-                _logger.LogWarn($"No se encontró el cobro con ID: {id} para ajustar monto");
+                _logger.LogWarn($"No se encontró el cobro con ID: {id} para actualizar monto");
                 throw new KeyNotFoundException($"Cobro con ID {id} no encontrado");
             }
 
-            // Guardar montos anteriores para comparar
-            decimal previousAdjustedAmount = collection.AdjustedIndividualAmount ?? collection.IndividualAmount;
-            decimal previousTotalAdjustedAmount = previousAdjustedAmount * collection.Advance.Total;
+            // Calcular el nuevo monto individual
+            int totalStudents = await _studentRepository.CountAsync(s => s.Status == true);
+            decimal newIndividualAmount = newTotalAmount / totalStudents;
             
-            _logger.LogDebug($"Monto ajustado anterior: {previousAdjustedAmount}, Monto total ajustado anterior: {previousTotalAdjustedAmount}");
+            _logger.LogDebug($"Monto total anterior: {collection.TotalAmount}, Nuevo monto total: {newTotalAmount}");
+            _logger.LogDebug($"Monto individual anterior: {collection.IndividualAmount}, Nuevo monto individual: {newIndividualAmount}");
 
-            // Actualizar el monto ajustado y el excedente total
-            collection.AdjustedIndividualAmount = dto.AdjustedAmount;
-            collection.TotalSurplus = dto.Surplus;
+            // Actualizar el cobro
+            collection.TotalAmount = newTotalAmount;
+            collection.IndividualAmount = newIndividualAmount;
+            collection.UpdatedAt = DateTime.UtcNow;
 
-            // Calcular el nuevo monto total ajustado
-            decimal newTotalAdjustedAmount = dto.AdjustedAmount * collection.Advance.Total;
-            _logger.LogDebug($"Nuevo monto total ajustado: {newTotalAdjustedAmount}");
-
-            // Obtener todos los pagos relacionados con este gasto
+            // Obtener todos los pagos relacionados con este cobro
             _logger.LogInfo($"Obteniendo pagos relacionados con el cobro ID: {id}");
             var payments = await _studentPaymentRepository.GetByCollectionIdAsync(id);
             _logger.LogInfo($"Se encontraron {payments.Count()} pagos relacionados con el cobro");
 
-            // Actualizar cada pago
-            _logger.LogInfo("Actualizando pagos individuales con el nuevo monto ajustado");
+            // Actualizar cada pago con el nuevo monto individual
+            _logger.LogInfo("Actualizando pagos individuales con el nuevo monto");
             foreach (var payment in payments)
             {
                 _logger.LogDebug($"Actualizando pago ID: {payment.Id} para estudiante: {payment.StudentId}");
                 
-                // Mantener el monto original
-                payment.AmountCollection = collection.IndividualAmount;
-                
-                // Establecer el monto ajustado
-                payment.AdjustedAmountCollection = dto.AdjustedAmount;
-                
-                // Calcular el excedente individual
-                payment.Surplus = dto.Surplus;
+                // Actualizar el monto del cobro
+                payment.AmountCollection = newIndividualAmount;
 
                 // Recalcular el estado del pago
                 string estadoAnterior = payment.PaymentStatus.ToString();
                 
-                if (payment.AmountPaid >= payment.AdjustedAmountCollection)
+                if (payment.AmountPaid >= newIndividualAmount)
                 {
                     payment.PaymentStatus = PaymentStatus.Paid;
-                    payment.Excedent = payment.AmountPaid - payment.AdjustedAmountCollection;
                     payment.Pending = 0;
-                    _logger.LogDebug($"Pago ID: {payment.Id} marcado como Pagado. Excedente: {payment.Excedent}");
+                    _logger.LogDebug($"Pago ID: {payment.Id} marcado como Pagado");
                 }
                 else if (payment.AmountPaid > 0)
                 {
                     payment.PaymentStatus = PaymentStatus.PartiallyPaid;
-                    payment.Excedent = 0;
-                    payment.Pending = payment.AdjustedAmountCollection - payment.AmountPaid;
+                    payment.Pending = newIndividualAmount - payment.AmountPaid;
                     _logger.LogDebug($"Pago ID: {payment.Id} marcado como Parcialmente Pagado. Pendiente: {payment.Pending}");
                 }
                 else
                 {
                     payment.PaymentStatus = PaymentStatus.Pending;
-                    payment.Excedent = 0;
-                    payment.Pending = payment.AdjustedAmountCollection;
+                    payment.Pending = newIndividualAmount;
                     _logger.LogDebug($"Pago ID: {payment.Id} marcado como Pendiente. Pendiente: {payment.Pending}");
                 }
 
@@ -319,7 +308,7 @@ namespace Application.Services {
                 await _studentPaymentRepository.UpdateAsync(payment);
             }
 
-            // Actualizar el avance del gasto
+            // Actualizar el avance del cobro
             int completedPayments = payments.Count(p => p.PaymentStatus == PaymentStatus.Paid);
             collection.Advance.Total = payments.Count();
             collection.Advance.Completed = completedPayments;
@@ -329,17 +318,13 @@ namespace Application.Services {
 
             // Calcular el porcentaje pagado
             var totalPaid = payments.Sum(p => p.AmountPaid);
-            var totalAdjusted = (collection.AdjustedIndividualAmount ?? collection.IndividualAmount) * collection.Advance.Total;
-            collection.PercentagePaid = totalAdjusted > 0 ? (totalPaid / totalAdjusted) * 100 : 0;
+            collection.PercentagePaid = newTotalAmount > 0 ? (totalPaid / newTotalAmount) * 100 : 0;
             
-            _logger.LogInfo($"Porcentaje pagado del cobro: {collection.PercentagePaid}%. Total pagado: {totalPaid}, Total ajustado: {totalAdjusted}");
+            _logger.LogInfo($"Porcentaje pagado del cobro: {collection.PercentagePaid}%. Total pagado: {totalPaid}, Total esperado: {newTotalAmount}");
 
-            // Ya no registramos cambios en la caja chica cuando cambia el monto ajustado
-            // Los gastos no afectan la caja chica, solo los pagos de estudiantes
-
-            // Guardar los cambios en el gasto
+            // Guardar los cambios en el cobro
             await _collectionRepository.UpdateAsync(collection);
-            _logger.LogInfo($"Cobro con ID: {id} actualizado correctamente con el nuevo monto ajustado");
+            _logger.LogInfo($"Cobro con ID: {id} actualizado correctamente con el nuevo monto total");
 
             return collection;
         }

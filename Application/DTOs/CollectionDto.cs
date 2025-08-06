@@ -1,6 +1,4 @@
 using Domain.Entities;
-using System;
-using System.Collections.Generic;
 
 namespace Application.DTOs
 {
@@ -11,8 +9,7 @@ namespace Application.DTOs
         public string? Name { get; set; }
         public decimal TotalAmount { get; set; }
         public decimal IndividualAmount { get; set; }
-        public decimal? AdjustedIndividualAmount { get; set; }
-        public decimal TotalSurplus { get; set; }
+
         public decimal TotalPaid { get; set; }
         public decimal TotalPending { get; set; }
         public DateTime Date { get; set; }

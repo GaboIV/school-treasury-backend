@@ -13,13 +13,12 @@ namespace Application.DTOs
         public string? StudentName { get; set; }
         public string? CollectionName { get; set; }
         public decimal AmountCollection { get; set; }
-        public decimal AdjustedAmountCollection { get; set; }
+
         public decimal AmountPaid { get; set; }
         public PaymentStatus PaymentStatus { get; set; }
         public List<string> Images { get; set; } = new List<string>();
         public string? Voucher { get; set; }
-        public decimal Excedent { get; set; }
-        public decimal Surplus { get; set; }
+
         public decimal Pending { get; set; }
         public string? Comment { get; set; }
         public DateTime? PaymentDate { get; set; }

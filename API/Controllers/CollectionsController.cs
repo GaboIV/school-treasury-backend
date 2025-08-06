@@ -197,42 +197,41 @@ public class CollectionsController : ControllerBase
         }
     }
 
-    [HttpPatch("{id}/adjust-amount")]
+    [HttpPatch("{id}/update-amount")]
     [ProducesResponseType(typeof(ApiResponse<CollectionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<ValidationProblemDetails>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> AdjustCollectionAmount(string id, [FromBody] AdjustCollectionAmountDto dto)
+    public async Task<IActionResult> UpdateCollectionAmount(string id, [FromBody] UpdateCollectionAmountDto dto)
     {
-        _logger.LogInfo($"Endpoint: PATCH api/v1/collections/{id}/adjust-amount - Ajustando monto de colección");
+        _logger.LogInfo($"Endpoint: PATCH api/v1/collections/{id}/update-amount - Actualizando monto total de colección");
         
         if (!ModelState.IsValid)
         {
-            _logger.LogWarn("Modelo inválido al ajustar monto de colección");
+            _logger.LogWarn("Modelo inválido al actualizar monto de colección");
             return BadRequest(ModelState);
         }
 
         try
         {
-            dto.Id = id; // Asegurar que el ID en el DTO coincida con el de la URL
-            _logger.LogDebug($"Ajustando monto de colección con ID: {id}, Nuevo monto: {dto.AdjustedAmount}");
+            _logger.LogDebug($"Actualizando monto total de colección con ID: {id}, Nuevo monto total: {dto.TotalAmount}");
             
-            var collection = await _collectionService.AdjustCollectionAmountAsync(id, dto);
+            var collection = await _collectionService.UpdateCollectionAmountAsync(id, dto.TotalAmount);
             var collectionDto = _mapper.Map<CollectionDto>(collection);
-            var response = new ApiResponse<CollectionDto>(collectionDto, "Monto ajustado correctamente");
+            var response = new ApiResponse<CollectionDto>(collectionDto, "Monto total actualizado correctamente");
             
-            _logger.LogInfo($"Monto de colección ajustado correctamente con ID: {id}");
+            _logger.LogInfo($"Monto total de colección actualizado correctamente con ID: {id}");
             return Ok(response);
         }
         catch (KeyNotFoundException ex)
         {
-            _logger.LogWarn($"No se encontró la colección con ID: {id} para ajustar monto: {ex.Message}");
+            _logger.LogWarn($"No se encontró la colección con ID: {id} para actualizar monto: {ex.Message}");
             return NotFound(new ApiResponse<string>(ex.Message, "Not Found", false));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error al ajustar monto de colección con ID: {id}");
-            return StatusCode(500, new ApiResponse<string>($"Error al ajustar el monto: {ex.Message}", "Error", false));
+            _logger.LogError(ex, $"Error al actualizar monto de colección con ID: {id}");
+            return StatusCode(500, new ApiResponse<string>($"Error al actualizar el monto: {ex.Message}", "Error", false));
         }
     }
 } 

@@ -213,64 +213,7 @@ namespace Application.Services
             }
         }
 
-        public async Task<TransactionDto> RegisterIncomeFromExcedentAsync(string paymentId, decimal amount, string description)
-        {
-            try
-            {
-                // Obtener el saldo actual de la caja chica antes de la transacción
-                var pettyCash = await _pettyCashRepository.GetAsync();
-                if (pettyCash == null)
-                {
-                    pettyCash = new PettyCash();
-                    await _pettyCashRepository.CreateAsync(pettyCash);
-                }
-                
-                decimal previousBalance = pettyCash.CurrentBalance;
-                
-                // Obtener información del pago
-                var payment = await _studentPaymentRepository.GetByIdAsync(paymentId);
-                if (payment == null)
-                {
-                    throw new KeyNotFoundException($"No se encontró el pago con ID {paymentId}");
-                }
-                
-                // Obtener información del estudiante
-                var student = await _studentRepository.GetByIdAsync(payment.StudentId);
-                
-                // Obtener información del gasto
-                var collection = await _collectionRepository.GetByIdAsync(payment.CollectionId);
-                
-                var transaction = new Transaction
-                {
-                    Type = TransactionType.Income,
-                    Amount = amount,
-                    Description = description,
-                    RelatedEntityId = paymentId,
-                    RelatedEntityType = "Payment",
-                    StudentId = payment.StudentId,
-                    StudentName = student?.Name,
-                    CollectionId = payment.CollectionId,
-                    CollectionName = collection?.Name,
-                    PaymentId = payment.Id,
-                    PaymentStatus = payment.PaymentStatus.ToString(),
-                    PreviousBalance = previousBalance,
-                    NewBalance = previousBalance + amount
-                };
 
-                // Actualizar el balance en la caja chica
-                await _pettyCashRepository.UpdateBalanceAsync(amount, TransactionType.Income);
-                
-                // Guardar la transacción en la colección separada
-                var addedTransaction = await _transactionRepository.CreateAsync(transaction);
-                
-                return _mapper.Map<TransactionDto>(addedTransaction);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error al registrar ingreso desde el excedente {paymentId}");
-                throw;
-            }
-        }
 
         public async Task<TransactionDto> RegisterExoneratedPaymentAsync(string paymentId, string description)
         {

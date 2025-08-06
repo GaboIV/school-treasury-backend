@@ -60,8 +60,7 @@ namespace Infrastructure.Repositories
                             Name = collection.Name,
                             TotalAmount = collection.TotalAmount,
                             IndividualAmount = collection.IndividualAmount,
-                            AdjustedIndividualAmount = collection.AdjustedIndividualAmount,
-                            TotalSurplus = collection.TotalSurplus,
+
                             Date = collection.Date,
                             PercentagePaid = collection.PercentagePaid,
                             Advance = collection.Advance,

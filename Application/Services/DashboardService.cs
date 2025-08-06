@@ -68,11 +68,8 @@ namespace Application.Services
                 completionPercentage = Math.Round(((decimal)(totalPayments - pendingPaymentsCount) / totalPayments) * 100, 2);
             }
 
-            // Calcular el monto total pendiente considerando montos ajustados
-            decimal totalPendingAmount = pendingPayments.Sum(p => 
-                p.AdjustedAmountCollection > 0 ? 
-                p.AdjustedAmountCollection - (p.AmountPaid > 0 ? p.AmountPaid : 0) : 
-                p.Pending);
+            // Calcular el monto total pendiente
+            decimal totalPendingAmount = pendingPayments.Sum(p => p.Pending);
 
             // Obtener los 3 pagos pendientes principales
             var topPendingPayments = new List<PendingPaymentDetailDto>();
@@ -88,12 +85,9 @@ namespace Application.Services
                 var studentDict = allStudents.ToDictionary(s => s.Id, s => s);
                 var collectionDict = allCollections.ToDictionary(c => c.Id, c => c);
 
-                // Ordenar por monto pendiente (de mayor a menor) considerando montos ajustados
+                // Ordenar por monto pendiente (de mayor a menor)
                 var orderedPendingPayments = pendingPayments
-                    .OrderByDescending(p => 
-                        p.AdjustedAmountCollection > 0 ? 
-                        p.AdjustedAmountCollection - (p.AmountPaid > 0 ? p.AmountPaid : 0) : 
-                        p.Pending)
+                    .OrderByDescending(p => p.Pending)
                     .ToList();
                 
                 // Tomar los 3 primeros para el detalle
@@ -104,10 +98,8 @@ namespace Application.Services
                     studentDict.TryGetValue(payment.StudentId, out var student);
                     collectionDict.TryGetValue(payment.CollectionId, out var collection);
                     
-                    // Calcular el monto pendiente considerando el monto ajustado
-                    decimal pendingAmount = payment.AdjustedAmountCollection > 0 ?
-                        payment.AdjustedAmountCollection - (payment.AmountPaid > 0 ? payment.AmountPaid : 0) :
-                        payment.Pending;
+                    // El monto pendiente ya está calculado en la entidad
+                    decimal pendingAmount = payment.Pending;
                     
                     topPendingPayments.Add(new PendingPaymentDetailDto
                     {
@@ -208,10 +200,8 @@ namespace Application.Services
                 
                 foreach (var collection in topCollections)
                 {
-                    // Calcular el monto pendiente considerando el monto ajustado
-                    decimal individualAmount = collection.AdjustedIndividualAmount.HasValue && collection.AdjustedIndividualAmount.Value > 0 
-                        ? collection.AdjustedIndividualAmount.Value 
-                        : collection.IndividualAmount;
+                    // Usar el monto individual del cobro
+                    decimal individualAmount = collection.IndividualAmount;
                     
                     decimal totalAmount = individualAmount * collection.Advance.Total;
                     decimal pendingAmount = totalAmount * (1 - (collection.PercentagePaid / 100));
